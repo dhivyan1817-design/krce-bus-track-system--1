@@ -1,0 +1,944 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1">
+<title>KRCE Bus Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+:root{
+  --bg:#F7F8FC;--bg2:#FFFFFF;--bg3:#F0F2F8;--bg4:#E5E9F5;
+  --border:rgba(30,40,90,0.1);--text:#111827;--muted:#6B7280;
+  --accent:#4F46E5;--accent2:#7C3AED;
+  --green:#059669;--amber:#D97706;--red:#DC2626;--teal:#0891B2;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Plus Jakarta Sans',sans-serif;-webkit-tap-highlight-color:transparent}
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+
+/* ── LOGIN SCREEN ── */
+#loginScreen{
+  min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:24px;background:linear-gradient(160deg,#EEF2FF 0%,#F7F8FC 60%)
+}
+.login-brand{text-align:center;margin-bottom:28px}
+.brand-icon{width:64px;height:64px;border-radius:20px;margin:0 auto 12px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:30px;box-shadow:0 8px 24px rgba(79,70,229,.3)}
+.brand-name{font-size:26px;font-weight:800;letter-spacing:-0.5px}
+.brand-name span{color:var(--accent)}
+.brand-sub{font-size:13px;color:var(--muted);margin-top:3px}
+
+/* Role selector */
+.role-selector{display:flex;gap:10px;margin-bottom:22px;width:100%;max-width:420px}
+.role-btn{flex:1;padding:12px 8px;border-radius:12px;border:2px solid var(--border);background:var(--bg2);cursor:pointer;transition:all .2s;font-family:'Plus Jakarta Sans',sans-serif;display:flex;flex-direction:column;align-items:center;gap:4px}
+.role-btn .r-icon{font-size:22px}
+.role-btn .r-label{font-size:12px;font-weight:600;color:var(--muted)}
+.role-btn.active{border-color:var(--accent);background:rgba(79,70,229,.07)}
+.role-btn.active .r-label{color:var(--accent)}
+
+/* Login card */
+.login-card{width:100%;max-width:420px;background:var(--bg2);border:1px solid var(--border);border-radius:20px;padding:30px;box-shadow:0 4px 30px rgba(0,0,0,.08)}
+.login-card h2{font-size:20px;font-weight:700;margin-bottom:3px}
+.login-card .sub{font-size:13px;color:var(--muted);margin-bottom:22px}
+.field{margin-bottom:14px}
+.field label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:5px}
+.field input,.field select{width:100%;background:var(--bg3);border:1.5px solid var(--border);border-radius:10px;padding:11px 14px;color:var(--text);font-family:'Plus Jakarta Sans',sans-serif;font-size:14px;outline:none;transition:border-color .2s}
+.field input:focus,.field select:focus{border-color:var(--accent)}
+.field select option{background:var(--bg2)}
+.btn-login{width:100%;padding:13px;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;border-radius:12px;color:#fff;font-family:'Plus Jakarta Sans',sans-serif;font-size:15px;font-weight:700;cursor:pointer;box-shadow:0 4px 15px rgba(79,70,229,.35);transition:transform .15s,box-shadow .15s;margin-top:6px}
+.btn-login:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(79,70,229,.4)}
+.login-links{display:flex;justify-content:space-between;margin-top:14px;font-size:12px}
+.login-links a{color:var(--accent);cursor:pointer;text-decoration:none;font-weight:500}
+.login-error{background:rgba(220,38,38,.08);border:1.5px solid rgba(220,38,38,.2);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--red);margin-top:10px;display:none}
+.demo-box{width:100%;max-width:420px;margin-top:14px;background:rgba(79,70,229,.06);border:1px solid rgba(79,70,229,.15);border-radius:12px;padding:14px;font-size:11px;color:var(--muted);line-height:2}
+.demo-box strong{color:var(--accent)}
+
+/* ── REGISTER OVERLAY ── */
+#registerOverlay{position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;padding:20px}
+.reg-card{background:var(--bg2);border-radius:20px;padding:28px;width:100%;max-width:480px;max-height:90vh;overflow-y:auto}
+.reg-card h2{font-size:18px;font-weight:700;margin-bottom:18px;display:flex;justify-content:space-between}
+.reg-tabs{display:flex;gap:8px;margin-bottom:18px}
+.reg-tab{flex:1;padding:9px;border-radius:8px;border:none;font-family:'Plus Jakarta Sans',sans-serif;font-size:12px;font-weight:600;cursor:pointer;background:var(--bg3);color:var(--muted);transition:all .2s}
+.reg-tab.active{background:var(--accent);color:#fff}
+.reg-field{margin-bottom:12px}
+.reg-field label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:5px}
+.reg-field input,.reg-field select{width:100%;background:var(--bg3);border:1.5px solid var(--border);border-radius:9px;padding:10px 13px;color:var(--text);font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;outline:none}
+.reg-field input:focus,.reg-field select:focus{border-color:var(--accent)}
+.reg-field select option{background:var(--bg2)}
+
+/* ── APP ── */
+#app{display:none;min-height:100vh;flex-direction:column}
+#app.visible{display:flex}
+#topbar{height:60px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:0 20px;background:var(--bg2);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100}
+.tb-left{display:flex;align-items:center;gap:12px}
+.tb-brand{font-size:18px;font-weight:800;letter-spacing:-0.3px}
+.tb-brand span{color:var(--accent)}
+.tb-role{padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em}
+.role-student{background:rgba(79,70,229,.1);color:var(--accent)}
+.role-driver{background:rgba(217,119,6,.1);color:var(--amber)}
+.role-parent{background:rgba(5,150,105,.1);color:var(--green)}
+.role-staff{background:rgba(124,58,237,.1);color:var(--accent2)}
+.tb-right{display:flex;align-items:center;gap:10px}
+.notif-btn{position:relative;width:38px;height:38px;border-radius:10px;background:var(--bg3);border:none;cursor:pointer;font-size:17px;display:flex;align-items:center;justify-content:center}
+.notif-btn .cnt{position:absolute;top:-3px;right:-3px;width:16px;height:16px;border-radius:50%;background:var(--red);font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;color:#fff}
+.tb-avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#fff;cursor:pointer}
+
+/* ── BOTTOM NAV ── */
+#bottomNav{height:64px;flex-shrink:0;display:flex;align-items:center;background:var(--bg2);border-top:1px solid var(--border);position:sticky;bottom:0;z-index:100;padding-bottom:env(safe-area-inset-bottom)}
+.nav-tab{flex:1;height:100%;border:none;background:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;font-size:10px;font-weight:600;color:var(--muted);transition:color .15s}
+.nav-tab .t-icon{font-size:20px;transition:transform .2s}
+.nav-tab.active{color:var(--accent)}
+.nav-tab.active .t-icon{transform:scale(1.12)}
+
+/* ── VIEWS ── */
+#content{flex:1;overflow:auto}
+.view{display:none;min-height:100%;padding:20px}
+.view.active{display:block}
+#mapView{padding:0;position:relative}
+#mapView.active{display:block}
+
+/* ── HOME CARDS ── */
+.welcome-banner{background:linear-gradient(135deg,var(--accent) 0%,var(--accent2) 100%);border-radius:16px;padding:20px;color:#fff;margin-bottom:16px;position:relative;overflow:hidden}
+.welcome-banner::after{content:'🚌';position:absolute;right:-10px;bottom:-10px;font-size:80px;opacity:.15}
+.welcome-banner h2{font-size:20px;font-weight:800}
+.welcome-banner p{font-size:13px;opacity:.85;margin-top:4px}
+
+.my-bus-card{background:var(--bg2);border:1.5px solid var(--border);border-radius:14px;padding:18px;margin-bottom:12px;box-shadow:0 2px 10px rgba(0,0,0,.05)}
+.mbc-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.mbc-bus{display:flex;align-items:center;gap:10px}
+.mbc-icon{width:44px;height:44px;border-radius:12px;background:rgba(79,70,229,.1);display:flex;align-items:center;justify-content:center;font-size:22px}
+.mbc-num{font-size:18px;font-weight:800}
+.mbc-route{font-size:12px;color:var(--muted);margin-top:1px}
+.eta-badge{background:var(--green);color:#fff;padding:8px 16px;border-radius:20px;font-size:13px;font-weight:700;display:flex;flex-direction:column;align-items:center}
+.eta-badge .et{font-size:9px;opacity:.8}
+.progress-track{height:6px;background:var(--bg3);border-radius:3px;overflow:hidden;margin-bottom:10px}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:3px;transition:width .5s}
+.stop-row{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
+.stop-row .dot{width:6px;height:6px;border-radius:50%;background:var(--accent);flex-shrink:0}
+.stop-row .next{font-weight:600;color:var(--text)}
+.track-btn{width:100%;padding:11px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;color:#fff;font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer;margin-top:12px}
+
+.alert-strip{border-radius:12px;padding:14px;margin-bottom:10px;border-left:4px solid transparent;display:flex;align-items:flex-start;gap:10px}
+.alert-strip.emergency{background:rgba(220,38,38,.07);border-color:var(--red)}
+.alert-strip.delay{background:rgba(217,119,6,.07);border-color:var(--amber)}
+.alert-strip.info{background:rgba(79,70,229,.07);border-color:var(--accent)}
+.alert-strip .as-icon{font-size:18px;flex-shrink:0}
+.alert-strip .as-body .as-title{font-size:13px;font-weight:700}
+.alert-strip .as-body .as-msg{font-size:12px;color:var(--muted);margin-top:2px;line-height:1.5}
+
+/* ── MAP ── */
+#liveMap{height:calc(100vh - 124px)}
+.map-card{position:absolute;bottom:16px;left:16px;right:16px;z-index:1000;background:var(--bg2);border-radius:16px;padding:16px;box-shadow:0 -4px 30px rgba(0,0,0,.12);border:1px solid var(--border)}
+.mc-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.mc-bus{font-size:16px;font-weight:800}
+.mc-eta{font-size:13px;font-weight:700;color:var(--green)}
+.mc-details{display:flex;gap:16px;font-size:12px;color:var(--muted)}
+.mc-details span{display:flex;align-items:center;gap:4px}
+
+/* ── DRIVER HOME ── */
+.driver-bus-card{background:linear-gradient(135deg,var(--amber),#F97316);border-radius:16px;padding:20px;color:#fff;margin-bottom:16px;position:relative;overflow:hidden}
+.driver-bus-card::after{content:'🚌';position:absolute;right:-5px;bottom:-8px;font-size:70px;opacity:.2}
+.passenger-count{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.pc-card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:14px;text-align:center}
+.pc-card .val{font-size:28px;font-weight:800;font-family:'IBM Plex Mono',monospace}
+.pc-card .lbl{font-size:11px;color:var(--muted);margin-top:3px}
+.pc-card.primary .val{color:var(--accent)}
+.pc-card.success .val{color:var(--green)}
+.gps-toggle-card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:14px;display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.gt-label{font-size:14px;font-weight:600}
+.gt-sub{font-size:12px;color:var(--muted);margin-top:2px}
+.toggle{position:relative;display:inline-block;width:48px;height:26px}
+.toggle input{opacity:0;width:0;height:0}
+.toggle-track{position:absolute;inset:0;background:#D1D5DB;border-radius:13px;transition:.2s;cursor:pointer}
+.toggle-track::before{content:'';position:absolute;width:20px;height:20px;border-radius:50%;background:#fff;top:3px;left:3px;transition:.2s;box-shadow:0 1px 4px rgba(0,0,0,.2)}
+.toggle input:checked + .toggle-track{background:var(--green)}
+.toggle input:checked + .toggle-track::before{transform:translateX(22px)}
+
+/* GPS status dot */
+.gps-dot-live{width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block;animation:gpspulse 2s infinite;margin-right:4px}
+@keyframes gpspulse{0%,100%{box-shadow:0 0 0 0 rgba(5,150,105,.5)}50%{box-shadow:0 0 0 6px rgba(5,150,105,0)}}
+
+.passenger-list-item{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)}
+.passenger-list-item:last-child{border:none}
+.pl-avatar{width:36px;height:36px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex-shrink:0}
+.pl-info{flex:1}
+.pl-name{font-size:13px;font-weight:600}
+.pl-detail{font-size:11px;color:var(--muted);margin-top:1px;font-family:'IBM Plex Mono',monospace}
+.pl-stop{font-size:11px;color:var(--muted);background:var(--bg3);padding:3px 8px;border-radius:6px}
+
+/* ── PARENT HOME ── */
+.child-status-card{background:var(--bg2);border:1.5px solid var(--border);border-radius:14px;padding:18px;margin-bottom:14px}
+.csc-top{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.csc-avatar{width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,var(--green),#10B981);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;color:#fff}
+.csc-name{font-size:16px;font-weight:700}
+.csc-sub{font-size:12px;color:var(--muted)}
+.csc-badge{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:20px;font-size:13px;font-weight:600}
+.csc-badge.boarded{background:rgba(5,150,105,.1);color:var(--green)}
+.csc-badge.not-boarded{background:rgba(217,119,6,.1);color:var(--amber)}
+
+/* ── ATTENDANCE ── */
+.section-title{font-size:16px;font-weight:800;margin-bottom:14px}
+.att-month-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:18px}
+.ams-card{background:var(--bg2);border-radius:12px;padding:14px;text-align:center;border:1px solid var(--border)}
+.ams-card .val{font-size:24px;font-weight:800;font-family:'IBM Plex Mono',monospace}
+.ams-card .lbl{font-size:11px;color:var(--muted);margin-top:3px}
+.ams-card.green .val{color:var(--green)}
+.ams-card.red .val{color:var(--red)}
+.ams-card.blue .val{color:var(--accent)}
+.att-item{display:flex;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid var(--border)}
+.att-item:last-child{border:none}
+.att-date{width:42px;height:42px;border-radius:10px;background:var(--bg3);display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0}
+.att-date .d{font-size:16px;font-weight:800;line-height:1}
+.att-date .m{font-size:10px;color:var(--muted)}
+.att-info{flex:1}
+.a-route{font-size:13px;font-weight:600}
+.a-detail{font-size:11px;color:var(--muted);margin-top:2px;font-family:'IBM Plex Mono',monospace}
+.att-badge{padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600}
+.att-badge.boarded{background:rgba(5,150,105,.12);color:var(--green)}
+.att-badge.exited{background:rgba(79,70,229,.12);color:var(--accent)}
+.att-badge.absent{background:rgba(217,119,6,.12);color:var(--amber)}
+
+/* ── NOTIFICATIONS ── */
+.notif-item{display:flex;gap:12px;padding:14px;background:var(--bg2);border-radius:12px;margin-bottom:8px;border:1px solid var(--border)}
+.notif-item.unread{border-color:rgba(79,70,229,.3);background:rgba(79,70,229,.04)}
+.notif-icon{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;background:var(--bg3)}
+.notif-icon.rfid{background:rgba(5,150,105,.12)}
+.notif-icon.alert{background:rgba(217,119,6,.12)}
+.notif-icon.system{background:rgba(79,70,229,.1)}
+.notif-title{font-size:13px;font-weight:600}
+.notif-msg{font-size:12px;color:var(--muted);margin-top:3px;line-height:1.5}
+.notif-time{font-size:11px;color:var(--muted);margin-top:5px}
+
+/* ── SEARCH / ROUTES ── */
+.search-view input{width:100%;padding:13px 16px;background:var(--bg2);border:1.5px solid var(--border);border-radius:12px;font-size:14px;font-family:'Plus Jakarta Sans',sans-serif;color:var(--text);outline:none;margin-bottom:16px}
+.search-view input:focus{border-color:var(--accent)}
+.route-card{background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:12px;cursor:pointer;transition:border-color .2s}
+.route-card:hover{border-color:var(--accent)}
+.rc-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.rc-name{font-size:14px;font-weight:700}
+.rc-eta{font-size:12px;font-weight:600;color:var(--green)}
+.rc-stops{font-size:12px;color:var(--muted);margin-bottom:8px}
+.rc-bottom{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--muted)}
+
+/* ── PROFILE ── */
+.profile-header{background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:16px;padding:24px;color:#fff;text-align:center;margin-bottom:16px}
+.p-avatar{width:64px;height:64px;border-radius:50%;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700;color:#fff;margin:0 auto 12px;border:3px solid rgba(255,255,255,.4)}
+.p-name{font-size:18px;font-weight:800}
+.p-sub{font-size:13px;opacity:.8;margin-top:4px}
+.profile-item{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border)}
+.profile-item:last-child{border:none}
+.pi-label{font-size:12px;color:var(--muted);font-weight:500}
+.pi-val{font-size:13px;font-weight:600}
+.pi-val.badge{background:rgba(79,70,229,.1);color:var(--accent);padding:3px 10px;border-radius:20px;font-size:11px}
+.logout-btn{width:100%;padding:13px;background:rgba(220,38,38,.08);border:1.5px solid rgba(220,38,38,.2);border-radius:12px;color:var(--red);font-family:'Plus Jakarta Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;margin-top:16px}
+
+/* ── TOAST ── */
+#toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(80px);z-index:8000;background:#1F2937;border-radius:10px;padding:11px 18px;font-size:13px;font-weight:500;color:#fff;opacity:0;transition:all .3s cubic-bezier(.34,1.56,.64,1);max-width:90%;text-align:center;pointer-events:none}
+#toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+#toast.success{background:#059669}
+#toast.error{background:var(--red)}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginScreen">
+  <div class="login-brand">
+    <div class="brand-icon">🚌</div>
+    <div class="brand-name">KRCE <span>BusTrack</span></div>
+    <div class="brand-sub">K. Ramakrishnan College of Engineering, Trichy</div>
+  </div>
+  <div class="role-selector">
+    <button class="role-btn active" id="role-student" onclick="selectRole('student')"><span class="r-icon">🎓</span><span class="r-label">Student</span></button>
+    <button class="role-btn" id="role-driver" onclick="selectRole('driver')"><span class="r-icon">🚌</span><span class="r-label">Driver</span></button>
+    <button class="role-btn" id="role-parent" onclick="selectRole('parent')"><span class="r-icon">👨‍👩‍👧</span><span class="r-label">Parent</span></button>
+  </div>
+  <div class="login-card">
+    <h2 id="loginTitle">Student Login</h2>
+    <div class="sub" id="loginSub">Track your bus in real time</div>
+    <div class="field"><label id="loginIdLabel">Email</label>
+      <input type="email" id="loginEmail" placeholder="your@krce.ac.in" value="aravind@krce.ac.in"></div>
+    <div class="field"><label>Password</label>
+      <input type="password" id="loginPw" placeholder="••••••••" value="student@123"></div>
+    <button class="btn-login" onclick="doLogin()">Sign In</button>
+    <div class="login-links">
+      <a onclick="showRegister()">New student? Register</a>
+    </div>
+    <div class="login-error" id="loginError"></div>
+  </div>
+  <div class="demo-box">
+    <strong>Students:</strong> aravind@krce.ac.in / student@123<br>
+    <strong>Driver:</strong> rajan@krce.ac.in / driver@123<br>
+    <strong>Parent:</strong> suresh.p@gmail.com / parent@123
+  </div>
+</div>
+
+<!-- REGISTER OVERLAY -->
+<div id="registerOverlay">
+  <div class="reg-card">
+    <h2>Register <button onclick="hideRegister()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:20px">✕</button></h2>
+    <div class="reg-tabs">
+      <button class="reg-tab active" onclick="setRegRole('student',this)">Student</button>
+      <button class="reg-tab" onclick="setRegRole('staff',this)">Staff</button>
+      <button class="reg-tab" onclick="setRegRole('parent',this)">Parent</button>
+    </div>
+    <div class="reg-field"><label>Full Name</label><input type="text" id="regName" placeholder="Your full name"></div>
+    <div class="reg-field"><label>Email</label><input type="email" id="regEmail" placeholder="you@krce.ac.in"></div>
+    <div class="reg-field"><label>Phone</label><input type="tel" id="regPhone" placeholder="98400-XXXXX"></div>
+    <div id="regStudentFields">
+      <div class="reg-field"><label>College ID</label><input type="text" id="regCollegeId" placeholder="22CS001"></div>
+      <div class="reg-field"><label>Preferred Bus Route</label>
+        <select id="regBus"><option value="">Select route…</option></select></div>
+      <div class="reg-field"><label>RFID Card ID (if available)</label><input type="text" id="regRfid" placeholder="RF0XX"></div>
+    </div>
+    <div id="regParentFields" style="display:none">
+      <div class="reg-field"><label>Child's College ID</label><input type="text" id="regChildId" placeholder="21CS001"></div>
+    </div>
+    <div class="reg-field"><label>Password</label><input type="password" id="regPw" placeholder="Create a password"></div>
+    <button class="btn-login" onclick="doRegister()">Submit Registration</button>
+    <div id="regMsg" style="margin-top:10px;font-size:12px;text-align:center"></div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <div id="topbar">
+    <div class="tb-left">
+      <div class="tb-brand">KRCE <span>Bus</span></div>
+      <div class="tb-role" id="tbRole">Student</div>
+    </div>
+    <div class="tb-right">
+      <button class="notif-btn" onclick="tabNav('notifications')">🔔<span class="cnt" id="notifCount">0</span></button>
+      <div class="tb-avatar" id="tbAvatar" onclick="tabNav('profile')">U</div>
+    </div>
+  </div>
+
+  <div id="content">
+    <!-- HOME -->
+    <div class="view active" id="view-home">
+      <div class="welcome-banner">
+        <h2 id="welcomeMsg">Good Morning!</h2>
+        <p id="welcomeSub">Loading your bus info…</p>
+      </div>
+      <!-- Student home -->
+      <div id="studentHome" style="display:none">
+        <div class="my-bus-card">
+          <div class="mbc-top">
+            <div class="mbc-bus">
+              <div class="mbc-icon">🚌</div>
+              <div><div class="mbc-num" id="busNum">—</div><div class="mbc-route" id="busRoute">—</div></div>
+            </div>
+            <div class="eta-badge"><span id="etaVal">—</span><span class="et">min ETA</span></div>
+          </div>
+          <div class="progress-track"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+          <div class="stop-row">
+            <div class="dot"></div>
+            <span>Next stop: <span class="next" id="nextStop">—</span></span>
+            <span style="margin-left:auto;font-family:'IBM Plex Mono';font-size:11px" id="busSpeed">—</span>
+          </div>
+          <button class="track-btn" onclick="tabNav('map')">📍 Live Track Bus</button>
+        </div>
+        <div id="homeAlerts"></div>
+      </div>
+
+      <!-- Driver home -->
+      <div id="driverHome" style="display:none">
+        <div class="driver-bus-card">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start">
+            <div><h3 id="driverBusNum" style="font-size:20px;font-weight:800">Bus —</h3>
+              <div style="font-size:12px;opacity:.85;margin-top:4px" id="driverBusRoute">—</div></div>
+            <div style="text-align:right">
+              <div style="font-size:11px;opacity:.7">Speed</div>
+              <div style="font-family:'IBM Plex Mono';font-weight:700;font-size:18px" id="driverSpeed">—</div>
+            </div>
+          </div>
+        </div>
+        <div class="passenger-count">
+          <div class="pc-card primary"><div class="val" id="boardedCount">—</div><div class="lbl">Boarded</div></div>
+          <div class="pc-card success"><div class="val" id="capacityVal">—</div><div class="lbl">Capacity</div></div>
+        </div>
+        <div class="gps-toggle-card">
+          <div>
+            <div class="gt-label"><span class="gps-dot-live" id="gpsDotLive"></span>GPS Broadcasting</div>
+            <div class="gt-sub" id="gpsStatus">Acquiring location…</div>
+          </div>
+          <label class="toggle"><input type="checkbox" id="gpsToggle" checked onchange="toggleGPS(this)"><div class="toggle-track"></div></label>
+        </div>
+        <div class="my-bus-card">
+          <div class="section-title" style="margin-bottom:12px">Today's Passengers (<span id="driverPassCount">0</span>)</div>
+          <div id="driverPassList"></div>
+        </div>
+      </div>
+
+      <!-- Parent home -->
+      <div id="parentHome" style="display:none">
+        <div class="child-status-card">
+          <div class="csc-top">
+            <div class="csc-avatar" id="childAvatar">C</div>
+            <div><div class="csc-name" id="childName">—</div><div class="csc-sub" id="childBusInfo">—</div></div>
+          </div>
+          <div id="childBoardedBadge" class="csc-badge not-boarded">⏳ Not boarded today</div>
+          <div style="margin-top:12px;font-size:12px;color:var(--muted)" id="childLastTap">Last tap: —</div>
+          <button class="track-btn" onclick="tabNav('map')">📍 Track Child's Bus</button>
+        </div>
+        <div id="parentAlerts"></div>
+      </div>
+    </div>
+
+    <!-- MAP -->
+    <div class="view" id="view-map" style="padding:0;position:relative">
+      <div id="liveMap"></div>
+      <div class="map-card">
+        <div class="mc-top">
+          <div class="mc-bus" id="mapBusNum">—</div>
+          <div class="mc-eta" id="mapEta">—</div>
+        </div>
+        <div class="mc-details">
+          <span>🚀 <span id="mapSpeed">—</span></span>
+          <span>👥 <span id="mapBoarded">—</span></span>
+          <span>📍 <span id="mapNextStop">—</span></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- SEARCH -->
+    <div class="view search-view" id="view-search">
+      <div class="section-title">Find Routes</div>
+      <input type="text" placeholder="🔍 Search area or stop name..." id="searchInput" oninput="filterRoutes()">
+      <div id="routeResults"></div>
+    </div>
+
+    <!-- ATTENDANCE -->
+    <div class="view" id="view-attendance">
+      <div class="section-title" id="attTitle">My Attendance</div>
+      <div class="att-month-summary">
+        <div class="ams-card green"><div class="val" id="attPresent">—</div><div class="lbl">Present</div></div>
+        <div class="ams-card red"><div class="val" id="attAbsent">—</div><div class="lbl">Absent</div></div>
+        <div class="ams-card blue"><div class="val" id="attPercent">—</div><div class="lbl">This Month</div></div>
+      </div>
+      <div id="attList"></div>
+    </div>
+
+    <!-- NOTIFICATIONS -->
+    <div class="view" id="view-notifications">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div class="section-title" style="margin:0">Notifications</div>
+        <button onclick="markAllRead()" style="background:none;border:none;font-size:12px;color:var(--accent);cursor:pointer;font-family:'Plus Jakarta Sans';font-weight:600">Mark all read</button>
+      </div>
+      <div id="notifList"></div>
+    </div>
+
+    <!-- PROFILE -->
+    <div class="view" id="view-profile">
+      <div class="profile-header">
+        <div class="p-avatar" id="profileAvatar">U</div>
+        <div class="p-name" id="profileName">—</div>
+        <div class="p-sub" id="profileSub">—</div>
+      </div>
+      <div class="my-bus-card">
+        <div class="section-title" style="margin-bottom:12px">Account Details</div>
+        <div id="profileDetails"></div>
+      </div>
+      <div class="my-bus-card">
+        <div class="section-title" style="margin-bottom:12px">Preferences</div>
+        <div class="gps-toggle-card" style="border:none;padding:0;background:none;margin:0">
+          <div><div class="gt-label">Push Notifications</div><div class="gt-sub">Arrival &amp; boarding alerts</div></div>
+          <label class="toggle"><input type="checkbox" checked><div class="toggle-track"></div></label>
+        </div>
+      </div>
+      <button class="logout-btn" onclick="doLogout()">🚪 Sign Out</button>
+    </div>
+  </div><!-- /content -->
+
+  <div id="bottomNav">
+    <button class="nav-tab active" onclick="tabNav('home')"         id="tab-home">        <div class="t-icon">🏠</div>Home</button>
+    <button class="nav-tab"        onclick="tabNav('map')"          id="tab-map">         <div class="t-icon">🗺️</div>Live Map</button>
+    <button class="nav-tab"        onclick="tabNav('search')"       id="tab-search">      <div class="t-icon">🔍</div>Search</button>
+    <button class="nav-tab"        onclick="tabNav('attendance')"   id="tab-attendance">  <div class="t-icon">📋</div>History</button>
+    <button class="nav-tab"        onclick="tabNav('profile')"      id="tab-profile">     <div class="t-icon">👤</div>Profile</button>
+  </div>
+</div><!-- /app -->
+<div id="toast"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// ── State ─────────────────────────────────────────────────────────
+let token = '', user = {}, selectedRole = 'student';
+let ws = null, wsRetry = 2000;
+let liveMap = null, mapInit = false, busMarker = null, myMarker = null;
+let gpsEnabled = true, gpsWatchId = null;
+let allBusData = [], allAlertsData = [], allAttData = [], allNotifData = [];
+let localNotifs = [];
+
+// ── Helpers ───────────────────────────────────────────────────────
+const h   = () => ({ Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' });
+const GET = url => fetch(url, { headers: h() }).then(r => r.json());
+const greeting = () => { const hr = new Date().getHours(); return hr<12?'Good Morning,':hr<17?'Good Afternoon,':'Good Evening,'; };
+
+// ── Role selector ─────────────────────────────────────────────────
+function selectRole(role) {
+  selectedRole = role;
+  document.querySelectorAll('.role-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('role-'+role).classList.add('active');
+  const cfg = {
+    student: ['Student Login',    'Track your bus in real time', 'aravind@krce.ac.in'],
+    driver:  ['Driver Login',     'Share your bus location live',  'rajan@krce.ac.in'],
+    parent:  ['Parent Login',     "Track your child's journey",    'suresh.p@gmail.com'],
+  }[role];
+  document.getElementById('loginTitle').textContent   = cfg[0];
+  document.getElementById('loginSub').textContent     = cfg[1];
+  document.getElementById('loginEmail').value         = cfg[2];
+  document.getElementById('loginPw').value            = role === 'parent' ? 'parent@123' : role === 'driver' ? 'driver@123' : 'student@123';
+}
+
+// ── Auth ──────────────────────────────────────────────────────────
+async function doLogin() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const pw    = document.getElementById('loginPw').value;
+  const err   = document.getElementById('loginError');
+  err.style.display = 'none';
+  try {
+    const r = await fetch('/api/auth/login', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ email, password: pw })
+    });
+    const d = await r.json();
+    if (d.detail) { err.textContent = d.detail; err.style.display = 'block'; return; }
+    token = d.token; user = d;
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('app').classList.add('visible');
+    initApp();
+  } catch(e) { err.textContent = 'Server unreachable. Is the server running?'; err.style.display = 'block'; }
+}
+
+function doLogout() {
+  ws?.close(); gpsWatchId && navigator.geolocation?.clearWatch(gpsWatchId);
+  token = ''; user = {};
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('app').classList.remove('visible');
+}
+
+document.getElementById('loginPw').addEventListener('keydown', e => e.key==='Enter' && doLogin());
+
+// ── Register ──────────────────────────────────────────────────────
+function showRegister()  { document.getElementById('registerOverlay').style.display='flex'; loadBusesForReg(); }
+function hideRegister()  { document.getElementById('registerOverlay').style.display='none'; }
+let regRole = 'student';
+function setRegRole(role, btn) {
+  regRole = role;
+  document.querySelectorAll('.reg-tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('regStudentFields').style.display = role==='parent'?'none':'block';
+  document.getElementById('regParentFields').style.display  = role==='parent'?'block':'none';
+}
+async function loadBusesForReg() {
+  try {
+    const r = await fetch('/api/buses', { headers: { Authorization: 'Bearer x' } });
+    const buses = r.ok ? await r.json() : [];
+    const sel = document.getElementById('regBus');
+    sel.innerHTML = '<option value="">Select route…</option>' +
+      buses.map(b=>`<option value="${b.id}">${b.number} — ${b.route_name}</option>`).join('');
+  } catch(e) {}
+}
+async function doRegister() {
+  const body = {
+    name: document.getElementById('regName').value.trim(),
+    email: document.getElementById('regEmail').value.trim(),
+    phone: document.getElementById('regPhone').value.trim(),
+    role: regRole,
+    college_id: document.getElementById('regCollegeId')?.value.trim() || '',
+    rfid_card: document.getElementById('regRfid')?.value.trim() || '',
+    requested_bus: document.getElementById('regBus')?.value || '',
+    parent_child_id: document.getElementById('regChildId')?.value.trim() || '',
+    password: document.getElementById('regPw').value,
+  };
+  if (!body.name || !body.email || !body.password) { showToast('Fill required fields','error'); return; }
+  const r = await fetch('/api/auth/register', {
+    method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)
+  });
+  const d = await r.json();
+  const msg = document.getElementById('regMsg');
+  if (d.status === 'ok') {
+    msg.style.color = 'var(--green)';
+    msg.textContent = '✓ Registration submitted! Awaiting admin approval.';
+  } else {
+    msg.style.color = 'var(--red)';
+    msg.textContent = d.detail || 'Registration failed.';
+  }
+}
+
+// ── Init App ──────────────────────────────────────────────────────
+async function initApp() {
+  const u = user;
+  document.getElementById('tbAvatar').textContent    = u.name[0];
+  document.getElementById('profileAvatar').textContent = u.name[0];
+  document.getElementById('profileName').textContent = u.name;
+  document.getElementById('welcomeMsg').textContent  = `${greeting()} ${u.name.split(' ')[0]}! 👋`;
+
+  const roleMap = {student:'Student',staff:'Staff',driver:'Driver',parent:'Parent'};
+  const tb = document.getElementById('tbRole');
+  tb.textContent = roleMap[u.role] || u.role;
+  tb.className   = 'tb-role role-' + (u.role==='staff'?'student':u.role);
+
+  if (u.role === 'driver') {
+    document.getElementById('driverHome').style.display  = 'block';
+    document.getElementById('studentHome').style.display = 'none';
+    document.getElementById('parentHome').style.display  = 'none';
+    document.getElementById('welcomeSub').textContent    = 'Bus GPS is broadcasting live';
+    document.getElementById('profileSub').textContent    = 'Driver · ' + (u.bus_id||'—');
+    document.getElementById('driverBusNum').textContent  = 'Bus ' + (u.bus_id||'—');
+    startDriverGPS();
+    loadDriverPassengers();
+    setInterval(loadDriverPassengers, 8000);
+  } else if (u.role === 'parent') {
+    document.getElementById('parentHome').style.display  = 'block';
+    document.getElementById('studentHome').style.display = 'none';
+    document.getElementById('driverHome').style.display  = 'none';
+    document.getElementById('attTitle').textContent      = 'Child\'s Attendance';
+    document.getElementById('profileSub').textContent    = 'Parent';
+    loadChildData();
+    setInterval(loadChildData, 10000);
+  } else {
+    document.getElementById('studentHome').style.display = 'block';
+    document.getElementById('parentHome').style.display  = 'none';
+    document.getElementById('driverHome').style.display  = 'none';
+    document.getElementById('busNum').textContent        = u.bus_id || '—';
+    document.getElementById('profileSub').textContent    = (u.role==='staff'?'Staff':'Student') + ' · ' + (u.college_id||'—');
+    document.getElementById('welcomeSub').textContent    = 'Bus: ' + (u.bus_id||'—');
+    loadMyBusLive();
+    setInterval(loadMyBusLive, 5000);
+  }
+
+  connectWS();
+  loadAlerts();
+  loadAttendance2();
+  loadRoutes();
+  renderProfile();
+  populateNotifs();
+  setInterval(loadAlerts, 15000);
+}
+
+// ── Tab nav ───────────────────────────────────────────────────────
+function tabNav(tab) {
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('view-'+tab).classList.add('active');
+  document.getElementById('tab-'+tab)?.classList.add('active');
+  if (tab === 'map') initLiveMap();
+  if (tab === 'attendance') loadAttendance2();
+  if (tab === 'notifications') { localNotifs.forEach(n=>n.read=true); renderNotifs(); document.getElementById('notifCount').textContent='0'; }
+}
+
+// ── My Bus Live ───────────────────────────────────────────────────
+async function loadMyBusLive() {
+  if (!user.bus_id) return;
+  try {
+    const live = await GET('/api/buses/'+user.bus_id+'/live');
+    if (!live || live.status==='offline') {
+      document.getElementById('busRoute').textContent  = 'Bus offline — no GPS signal';
+      document.getElementById('etaVal').textContent    = '—';
+      document.getElementById('busSpeed').textContent  = '—';
+      return;
+    }
+    const buses = await GET('/api/buses');
+    const bus   = buses.find(b=>b.id===user.bus_id);
+    if (bus) {
+      document.getElementById('busRoute').textContent   = bus.route_name;
+      document.getElementById('mapBusNum').textContent  = bus.number + ' — ' + bus.route_name;
+    }
+    const spd = Math.round(live.speed||0);
+    document.getElementById('busSpeed').textContent  = spd + ' km/h';
+    document.getElementById('mapSpeed').textContent  = spd + ' km/h';
+    document.getElementById('mapBoarded').textContent= (live.passengers||0)+' aboard';
+    document.getElementById('nextStop').textContent  = (bus?.stops||[])[1] || '—';
+    document.getElementById('mapNextStop').textContent = (bus?.stops||[])[1] || '—';
+    // Rough ETA based on speed
+    const eta = spd > 0 ? Math.max(1, Math.round(15 - spd*0.2)) : 10;
+    document.getElementById('etaVal').textContent    = eta;
+    document.getElementById('mapEta').textContent    = 'ETA: ~'+eta+' min';
+    document.getElementById('progressFill').style.width = Math.min(95, 40+spd) + '%';
+    // Update marker on map
+    if (liveMap && mapInit) {
+      if (busMarker) busMarker.setLatLng([live.lat, live.lon]);
+      else {
+        busMarker = L.marker([live.lat, live.lon], {icon: busIconL()}).addTo(liveMap)
+          .bindPopup(`<b>${bus?.number}</b> — ${bus?.route_name}`);
+        liveMap.setView([live.lat, live.lon], 15);
+      }
+    }
+  } catch(e) {}
+}
+
+function busIconL() {
+  return L.divIcon({
+    html:`<div style="background:#4F46E5;width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:0 3px 12px rgba(79,70,229,.5);border:2px solid rgba(255,255,255,.5)">🚌</div>`,
+    iconSize:[38,38],iconAnchor:[19,19],className:''
+  });
+}
+
+// ── Driver GPS ────────────────────────────────────────────────────
+function startDriverGPS() {
+  if (!navigator.geolocation) {
+    document.getElementById('gpsStatus').textContent = 'GPS not available on this device';
+    return;
+  }
+  gpsWatchId = navigator.geolocation.watchPosition(
+    pos => {
+      if (!gpsEnabled) return;
+      const { latitude: lat, longitude: lon, speed, heading } = pos.coords;
+      document.getElementById('gpsStatus').textContent = `📡 Live: ${lat.toFixed(5)}, ${lon.toFixed(5)}`;
+      document.getElementById('driverSpeed').textContent = (speed ? Math.round(speed*3.6) : 0) + ' km/h';
+      document.getElementById('mapSpeed').textContent = (speed ? Math.round(speed*3.6) : 0) + ' km/h';
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({
+          type: 'gps', lat, lon,
+          speed: speed ? speed*3.6 : 0,
+          heading: heading || 0,
+          passengers: parseInt(document.getElementById('boardedCount').textContent)||0
+        }));
+      }
+      // Update map
+      if (liveMap && mapInit) {
+        if (busMarker) busMarker.setLatLng([lat, lon]);
+        else {
+          busMarker = L.marker([lat, lon], {icon: busIconL()}).addTo(liveMap);
+          liveMap.setView([lat, lon], 15);
+        }
+      }
+    },
+    err => { document.getElementById('gpsStatus').textContent = 'GPS error: ' + err.message; },
+    { enableHighAccuracy: true, maximumAge: 3000, timeout: 10000 }
+  );
+}
+
+function toggleGPS(el) {
+  gpsEnabled = el.checked;
+  document.getElementById('gpsStatus').textContent = gpsEnabled ? 'Broadcasting location live' : 'GPS paused — students cannot track you';
+  showToast(gpsEnabled ? 'GPS ON — location broadcasting' : 'GPS OFF', gpsEnabled ? 'success' : 'error');
+}
+
+// ── Driver Passengers ─────────────────────────────────────────────
+async function loadDriverPassengers() {
+  if (!user.bus_id) return;
+  try {
+    const list = await GET('/api/buses/'+user.bus_id+'/passengers');
+    document.getElementById('driverPassCount').textContent = list.length;
+    document.getElementById('boardedCount').textContent    = list.length;
+    const buses = await GET('/api/buses');
+    const bus   = buses.find(b=>b.id===user.bus_id);
+    if (bus) {
+      document.getElementById('capacityVal').textContent   = bus.capacity;
+      document.getElementById('driverBusRoute').textContent = bus.route_name;
+    }
+    document.getElementById('driverPassList').innerHTML = list.length === 0
+      ? '<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px">No passengers boarded yet.</div>'
+      : list.map(p => `
+        <div class="passenger-list-item">
+          <div class="pl-avatar">${p.name[0]}</div>
+          <div class="pl-info"><div class="pl-name">${p.name}</div>
+            <div class="pl-detail">${p.college_id||'—'} · ${p.tap_time?.slice(11,16)||'—'}</div></div>
+          <div class="pl-stop">${p.stop_name||'—'}</div>
+        </div>`).join('');
+  } catch(e) {}
+}
+
+// ── Parent / Child data ───────────────────────────────────────────
+async function loadChildData() {
+  try {
+    const att = await GET('/api/my/child-attendance');
+    if (!att.length) return;
+    const child = att[0];
+    document.getElementById('childName').textContent    = child.child_name || '—';
+    document.getElementById('childAvatar').textContent  = (child.child_name||'C')[0];
+    document.getElementById('childBusInfo').textContent = child.bus_number + ' — ' + child.route_name;
+    const today = new Date().toISOString().slice(0,10);
+    const todayAtt = att.filter(a=>a.date===today);
+    const boarded  = todayAtt.find(a=>a.tap_type==='boarded');
+    const badge    = document.getElementById('childBoardedBadge');
+    if (boarded) {
+      badge.className = 'csc-badge boarded';
+      badge.textContent = '✓ Boarded at ' + (boarded.tap_time?.slice(11,16)||'—');
+      document.getElementById('childLastTap').textContent = 'Last tap: Boarded ' + boarded.stop_name + ' at ' + boarded.tap_time?.slice(11,16);
+    } else {
+      badge.className = 'csc-badge not-boarded';
+      badge.textContent = '⏳ Not boarded today';
+    }
+    renderAttList(att);
+  } catch(e) {}
+}
+
+// ── Alerts ────────────────────────────────────────────────────────
+async function loadAlerts() {
+  try {
+    allAlertsData = await GET('/api/alerts');
+    renderHomeAlerts();
+  } catch(e) {}
+}
+
+function renderHomeAlerts() {
+  const ids = ['homeAlerts','parentAlerts'];
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.innerHTML = allAlertsData.slice(0,3).map(a => `
+      <div class="alert-strip ${a.alert_type}">
+        <div class="as-icon">${a.alert_type==='delay'?'⏰':a.alert_type==='emergency'?'🚨':'ℹ️'}</div>
+        <div class="as-body">
+          <div class="as-title">${a.title}</div>
+          <div class="as-msg">${a.message}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px">${a.sent_at?.slice(0,16)||'—'}</div>
+        </div>
+      </div>`).join('') || '<div style="font-size:12px;color:var(--muted);text-align:center;padding:12px">No active alerts</div>';
+  });
+}
+
+// ── Attendance ────────────────────────────────────────────────────
+async function loadAttendance2() {
+  try {
+    const url = user.role==='parent' ? '/api/my/child-attendance' : '/api/my/attendance';
+    allAttData = await GET(url);
+    const month = allAttData.filter(a=>a.date?.slice(0,7)===new Date().toISOString().slice(0,7));
+    const present = new Set(month.filter(a=>a.tap_type==='boarded').map(a=>a.date)).size;
+    const totalDays = new Date().getDate();
+    const absent  = Math.max(0, totalDays - present);
+    const pct = totalDays > 0 ? Math.round(present/totalDays*100) : 0;
+    document.getElementById('attPresent').textContent = present;
+    document.getElementById('attAbsent').textContent  = absent;
+    document.getElementById('attPercent').textContent = pct + '%';
+    renderAttList(allAttData);
+  } catch(e) {}
+}
+
+function renderAttList(data) {
+  const el = document.getElementById('attList');
+  if (!el) return;
+  if (!data.length) { el.innerHTML = '<div style="text-align:center;padding:24px;color:var(--muted);font-size:13px">No attendance records yet.</div>'; return; }
+  el.innerHTML = data.slice(0,20).map(a => {
+    const dt  = new Date(a.tap_time||a.date||'');
+    const day = isNaN(dt)?'—':dt.getDate();
+    const mon = isNaN(dt)?'—':dt.toLocaleString('default',{month:'short'});
+    return `<div class="att-item">
+      <div class="att-date"><div class="d">${day}</div><div class="m">${mon}</div></div>
+      <div class="att-info">
+        <div class="a-route">${a.route_name||'—'}</div>
+        <div class="a-detail">Bus ${a.bus_number||'—'} · ${a.tap_time?.slice(11,16)||'—'}</div>
+      </div>
+      <div class="att-badge ${a.tap_type}">${a.tap_type}</div>
+    </div>`;
+  }).join('');
+}
+
+// ── Routes search ─────────────────────────────────────────────────
+let routesBusData = [];
+async function loadRoutes() {
+  try { routesBusData = await GET('/api/buses'); renderRouteCards(routesBusData); } catch(e) {}
+}
+
+function renderRouteCards(buses) {
+  document.getElementById('routeResults').innerHTML = buses.map(b => {
+    const live = b.live;
+    const pax  = live ? live.passengers : '—';
+    const st   = live ? live.status : 'offline';
+    return `<div class="route-card" onclick="tabNav('map')">
+      <div class="rc-top">
+        <div class="rc-name">${b.number} — ${b.route_name.split(' — ')[1]||b.route_name}</div>
+        <div class="rc-eta" style="color:${st==='moving'?'var(--green)':st==='idle'?'var(--amber)':'var(--muted)'}">● ${st}</div>
+      </div>
+      <div class="rc-stops">📍 ${(b.stops||[]).join(' → ')}</div>
+      <div class="rc-bottom">
+        <span>👥 ${pax}/${b.capacity}</span>
+        <div style="flex:1;height:4px;background:var(--bg3);border-radius:2px;overflow:hidden;max-width:80px">
+          <div style="height:100%;width:${live?Math.round(live.passengers/b.capacity*100):0}%;background:var(--accent);border-radius:2px"></div>
+        </div>
+      </div>
+    </div>`;
+  }).join('') || '<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px">No buses available</div>';
+}
+
+function filterRoutes() {
+  const q = document.getElementById('searchInput').value.toLowerCase();
+  const filtered = routesBusData.filter(b =>
+    b.route_name.toLowerCase().includes(q) || b.number.toLowerCase().includes(q) ||
+    (b.stops||[]).some(s=>s.toLowerCase().includes(q))
+  );
+  renderRouteCards(filtered);
+}
+
+// ── Profile ───────────────────────────────────────────────────────
+function renderProfile() {
+  const u = user;
+  const items = u.role==='driver'
+    ? [{l:'Name',v:u.name},{l:'Driver ID',v:u.user_id},{l:'Phone',v:u.phone||'—'},{l:'Assigned Bus',v:u.bus_id||'—',b:true}]
+    : u.role==='parent'
+    ? [{l:'Name',v:u.name},{l:'Phone',v:u.phone||'—'},{l:'Linked Child',v:u.parent_of||'—',b:true}]
+    : [{l:'Name',v:u.name},{l:'College ID',v:u.college_id||'—'},{l:'Phone',v:u.phone||'—'},{l:'Bus Route',v:u.bus_id||'—',b:true},{l:'RFID Card',v:u.rfid_card||'Not assigned'}];
+  document.getElementById('profileDetails').innerHTML = items.map(it=>
+    `<div class="profile-item"><div class="pi-label">${it.l}</div><div class="pi-val${it.b?' badge':''}">${it.v}</div></div>`
+  ).join('');
+}
+
+// ── Notifications ─────────────────────────────────────────────────
+function populateNotifs() {
+  localNotifs = allAlertsData.slice(0,5).map((a,i)=>({
+    icon:'alert', type:'alert',
+    title: a.title, msg: a.message,
+    time: a.sent_at?.slice(0,16)||'—', read: i>1
+  }));
+  renderNotifs();
+}
+function renderNotifs() {
+  const unread = localNotifs.filter(n=>!n.read).length;
+  document.getElementById('notifCount').textContent = unread;
+  document.getElementById('notifList').innerHTML = localNotifs.map(n=>`
+    <div class="notif-item ${n.read?'':'unread'}">
+      <div class="notif-icon ${n.icon}">${n.type==='rfid'?'🔖':'🔔'}</div>
+      <div>
+        <div class="notif-title">${n.title}</div>
+        <div class="notif-msg">${n.msg}</div>
+        <div class="notif-time">${n.time}</div>
+      </div>
+    </div>`).join('') || '<div style="text-align:center;padding:24px;color:var(--muted);font-size:13px">No notifications</div>';
+}
+function markAllRead() { localNotifs.forEach(n=>n.read=true); renderNotifs(); document.getElementById('notifCount').textContent='0'; showToast('All marked as read','success'); }
+
+// ── Map ───────────────────────────────────────────────────────────
+function initLiveMap() {
+  if (mapInit) return;
+  liveMap = L.map('liveMap',{zoomControl:false}).setView([10.9601,78.8078],14);
+  L.control.zoom({position:'bottomright'}).addTo(liveMap);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OSM'}).addTo(liveMap);
+  // User location
+  navigator.geolocation?.getCurrentPosition(pos=>{
+    const icon=L.divIcon({html:'<div style="background:#059669;width:14px;height:14px;border-radius:50%;border:3px solid white;box-shadow:0 0 0 3px rgba(5,150,105,.3)"></div>',iconSize:[14,14],iconAnchor:[7,7],className:''});
+    myMarker=L.marker([pos.coords.latitude,pos.coords.longitude],{icon}).addTo(liveMap).bindPopup('Your Location');
+  },()=>{});
+  mapInit = true;
+  if (user.role !== 'driver') loadMyBusLive();
+}
+
+// ── WebSocket ─────────────────────────────────────────────────────
+function connectWS() {
+  const proto = location.protocol==='https:'?'wss':'ws';
+  ws = new WebSocket(`${proto}://${location.host}/ws?token=${token}`);
+  ws.onopen  = () => { wsRetry=2000; setInterval(()=>ws.readyState===1&&ws.send(JSON.stringify({type:'ping'})),25000); };
+  ws.onmessage = e => {
+    const d = JSON.parse(e.data);
+    if (d.type==='alert') {
+      loadAlerts();
+      localNotifs.unshift({icon:'alert',type:'alert',title:d.title,msg:d.message,time:new Date().toLocaleTimeString(),read:false});
+      renderNotifs();
+      showToast(d.title,'');
+    }
+  };
+  ws.onclose = () => { setTimeout(connectWS, wsRetry); wsRetry=Math.min(wsRetry*2,30000); };
+}
+
+// ── Toast ─────────────────────────────────────────────────────────
+function showToast(msg, type='') {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'show'+(type?' '+type:'');
+  clearTimeout(t._to); t._to = setTimeout(()=>{t.className='';},3000);
+}
+</script>
+</body>
+</html>

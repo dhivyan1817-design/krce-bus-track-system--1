@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>KRCE — Admin Portal</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+:root{
+  --bg:#080B10;--bg2:#0D1117;--bg3:#141A23;--bg4:#1C2430;
+  --border:rgba(99,179,237,0.12);--border2:rgba(255,255,255,0.06);
+  --text:#E2EAF4;--muted:rgba(226,234,244,0.45);
+  --accent:#3B82F6;--accent2:#06B6D4;
+  --green:#10B981;--amber:#F59E0B;--red:#EF4444;--purple:#8B5CF6;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'Space Grotesk',sans-serif;font-size:14px}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+
+/* ── LOGIN ── */
+#loginScreen{position:fixed;inset:0;z-index:9999;background:var(--bg);display:flex;align-items:center;justify-content:center}
+.login-wrap{width:440px;background:var(--bg2);border:1px solid var(--border);border-radius:20px;padding:40px;box-shadow:0 0 80px rgba(59,130,246,0.12)}
+.login-logo{font-size:22px;font-weight:700;letter-spacing:-0.5px;margin-bottom:4px;display:flex;align-items:center;gap:10px}
+.login-logo .dot{width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:14px}
+.login-college{font-size:12px;color:var(--muted);margin-bottom:6px}
+.login-sub{font-size:12px;color:var(--muted);margin-bottom:28px}
+.field-grp{margin-bottom:14px}
+.field-grp label{font-size:11px;color:var(--muted);font-weight:500;display:block;margin-bottom:5px;text-transform:uppercase;letter-spacing:.05em}
+.field-grp input,.field-grp select{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:11px 14px;color:var(--text);font-family:'Space Grotesk',sans-serif;font-size:13px;transition:border-color .2s;outline:none}
+.field-grp input:focus,.field-grp select:focus{border-color:var(--accent)}
+.field-grp select option{background:var(--bg3)}
+.login-btn{width:100%;padding:12px;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;border-radius:10px;color:#fff;font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:opacity .2s,transform .15s;margin-top:8px}
+.login-btn:hover{opacity:.9;transform:translateY(-1px)}
+.login-error{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--red);margin-top:12px;display:none}
+.demo-hint{margin-top:18px;padding:14px;background:rgba(59,130,246,.07);border:1px solid var(--border);border-radius:10px;font-size:11px;color:var(--muted);line-height:2}
+.demo-hint strong{color:var(--accent)}
+
+/* ── MAIN ── */
+#app{display:none;height:100vh;flex-direction:column}
+#app.visible{display:flex}
+#topbar{height:56px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:0 24px;background:var(--bg2);border-bottom:1px solid var(--border2);z-index:200}
+.tb-left{display:flex;align-items:center;gap:16px}
+.tb-logo{font-size:17px;font-weight:700;letter-spacing:-0.3px;display:flex;align-items:center;gap:8px}
+.tb-logo .dot{width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:10px}
+.tb-college{font-size:11px;color:var(--muted)}
+.live-pill{display:flex;align-items:center;gap:5px;background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.2);padding:3px 10px;border-radius:100px;font-size:11px;font-weight:500;color:var(--green)}
+.live-dot{width:5px;height:5px;border-radius:50%;background:var(--green);animation:blink 2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.tb-right{display:flex;align-items:center;gap:12px}
+.tb-user{font-size:12px;color:var(--muted)}
+.tb-user strong{color:var(--text)}
+.tb-btn{background:rgba(255,255,255,.05);border:1px solid var(--border2);border-radius:8px;padding:6px 14px;font-size:12px;font-weight:500;color:var(--muted);cursor:pointer;font-family:'Space Grotesk',sans-serif;transition:all .15s}
+.tb-btn:hover{background:rgba(255,255,255,.09);color:var(--text)}
+
+/* ── BODY ── */
+#bodyWrap{flex:1;display:flex;overflow:hidden}
+#sidebar{width:240px;flex-shrink:0;background:var(--bg2);border-right:1px solid var(--border2);display:flex;flex-direction:column;overflow-y:auto}
+.nav-section{padding:14px 12px 6px}
+.nav-section-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;font-weight:500;padding:0 8px;margin-bottom:6px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:9px;cursor:pointer;transition:all .15s;font-size:13px;font-weight:500;color:var(--muted);margin-bottom:2px}
+.nav-item:hover{background:var(--bg3);color:var(--text)}
+.nav-item.active{background:rgba(59,130,246,.15);color:var(--accent)}
+.nav-item .icon{font-size:15px;width:20px;text-align:center;flex-shrink:0}
+.nav-item .badge{margin-left:auto;min-width:18px;height:18px;background:rgba(239,68,68,.2);color:var(--red);border-radius:9px;font-size:10px;font-weight:600;display:flex;align-items:center;justify-content:center;padding:0 5px}
+#sidebar-footer{margin-top:auto;padding:14px 12px;border-top:1px solid var(--border2)}
+.sidebar-stat{background:var(--bg3);border-radius:10px;padding:12px 14px;margin-bottom:8px}
+.sidebar-stat .s-val{font-size:22px;font-weight:700;font-family:'JetBrains Mono',monospace}
+.sidebar-stat .s-lbl{font-size:11px;color:var(--muted);margin-top:2px}
+.sidebar-stat.green .s-val{color:var(--green)}
+.sidebar-stat.amber .s-val{color:var(--amber)}
+.sidebar-stat.blue .s-val{color:var(--accent)}
+
+/* ── VIEWS ── */
+#main{flex:1;overflow:hidden;position:relative}
+.view{display:none;height:100%;overflow:auto;padding:24px}
+.view.active{display:flex;flex-direction:column}
+.page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;flex-shrink:0}
+.page-title{font-size:20px;font-weight:700}
+.page-subtitle{font-size:12px;color:var(--muted);margin-top:2px}
+
+/* ── STATS GRID ── */
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px;flex-shrink:0}
+.stat-card{background:var(--bg2);border:1px solid var(--border2);border-radius:14px;padding:18px;transition:border-color .2s}
+.stat-card:hover{border-color:var(--border)}
+.stat-card .s-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.stat-card .s-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px}
+.stat-card .s-delta{font-size:11px;background:rgba(16,185,129,.1);color:var(--green);padding:2px 8px;border-radius:20px}
+.stat-card .s-val{font-size:26px;font-weight:700;font-family:'JetBrains Mono',monospace;line-height:1}
+.stat-card .s-lbl{font-size:12px;color:var(--muted);margin-top:4px}
+
+/* ── CARDS / TABLES ── */
+.card{background:var(--bg2);border:1px solid var(--border2);border-radius:14px;overflow:hidden}
+.card-header{padding:14px 18px;border-bottom:1px solid var(--border2);display:flex;align-items:center;justify-content:space-between}
+.card-title{font-size:14px;font-weight:600}
+.card-body{padding:18px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead th{padding:10px 14px;text-align:left;font-size:11px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;background:var(--bg3);border-bottom:1px solid var(--border2)}
+tbody tr{border-bottom:1px solid var(--border2);transition:background .15s}
+tbody tr:hover{background:rgba(255,255,255,.02)}
+tbody tr:last-child{border-bottom:none}
+tbody td{padding:11px 14px;vertical-align:middle}
+.table-wrap{overflow-x:auto}
+.table-wrap table{min-width:700px}
+
+/* ── BADGES ── */
+.badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600}
+.badge-green{background:rgba(16,185,129,.15);color:var(--green)}
+.badge-amber{background:rgba(245,158,11,.15);color:var(--amber)}
+.badge-red{background:rgba(239,68,68,.15);color:var(--red)}
+.badge-blue{background:rgba(59,130,246,.15);color:var(--accent)}
+.badge-purple{background:rgba(139,92,246,.15);color:var(--purple)}
+.badge-gray{background:rgba(255,255,255,.07);color:var(--muted)}
+
+/* ── BUTTONS ── */
+.btn{padding:8px 16px;border-radius:9px;border:none;font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover{background:#2563EB}
+.btn-success{background:var(--green);color:#fff}
+.btn-danger{background:var(--red);color:#fff}
+.btn-outline{background:transparent;border:1px solid var(--border2);color:var(--muted)}
+.btn-outline:hover{border-color:var(--accent);color:var(--accent)}
+.btn-sm{padding:5px 12px;font-size:11px}
+
+/* ── SEARCH / FILTER ── */
+.search-bar{display:flex;gap:10px;margin-bottom:14px}
+.search-bar input,.filter-row select{background:var(--bg3);border:1px solid var(--border2);border-radius:9px;padding:8px 12px;color:var(--text);font-family:'Space Grotesk',sans-serif;font-size:12px;outline:none}
+.search-bar input{flex:1}
+.search-bar input:focus,.filter-row select:focus{border-color:var(--accent)}
+.filter-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.filter-row select option{background:var(--bg3)}
+
+/* ── MAP ── */
+#mapView{padding:0}
+#mapView.active{display:block}
+#fleetMap{height:100%;width:100%}
+.map-overlay{position:absolute;z-index:1000;background:var(--bg2);border:1px solid var(--border2);border-radius:12px;padding:14px}
+.map-overlay.top-left{top:14px;left:14px;width:270px;max-height:calc(100% - 28px);overflow-y:auto}
+.map-overlay.top-right{top:14px;right:14px;width:220px}
+.overlay-title{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:10px}
+.bus-item{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border2);cursor:pointer}
+.bus-item:last-child{border:none}
+.bus-item:hover{opacity:.8}
+.bus-icon{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.bus-icon.moving{background:rgba(16,185,129,.15)}
+.bus-icon.idle{background:rgba(245,158,11,.15)}
+.bus-icon.offline{background:rgba(239,68,68,.1)}
+.bus-meta{flex:1;min-width:0}
+.bus-name{font-size:12px;font-weight:600}
+.bus-detail{font-size:11px;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-top:1px}
+.speed-pill{font-size:10px;padding:2px 7px;border-radius:20px;background:rgba(6,182,212,.1);color:var(--accent2);font-family:'JetBrains Mono',monospace}
+
+/* ── ALERTS ── */
+.alert-item{display:flex;align-items:flex-start;gap:12px;padding:14px;background:var(--bg3);border-radius:10px;margin-bottom:8px;border-left:3px solid transparent}
+.alert-item.emergency{border-color:var(--red)}
+.alert-item.delay{border-color:var(--amber)}
+.alert-item.info{border-color:var(--accent)}
+.alert-item .a-icon{font-size:18px;flex-shrink:0;margin-top:1px}
+.alert-item .a-body{flex:1}
+.alert-item .a-title{font-size:13px;font-weight:600}
+.alert-item .a-msg{font-size:12px;color:var(--muted);margin-top:3px;line-height:1.5}
+.alert-item .a-meta{font-size:11px;color:var(--muted);margin-top:6px;display:flex;gap:12px;flex-wrap:wrap}
+.alert-item .resolve-btn{font-size:11px;padding:3px 10px;border-radius:20px;border:none;background:rgba(16,185,129,.1);color:var(--green);cursor:pointer;font-family:'Space Grotesk',sans-serif;font-weight:500}
+
+/* ── FORM / MODAL ── */
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.form-group{display:flex;flex-direction:column;gap:5px}
+.form-group label{font-size:11px;color:var(--muted);font-weight:500;text-transform:uppercase;letter-spacing:.05em}
+.form-group input,.form-group select,.form-group textarea{background:var(--bg3);border:1px solid var(--border2);border-radius:9px;padding:10px 13px;color:var(--text);font-family:'Space Grotesk',sans-serif;font-size:13px;outline:none;transition:border-color .2s}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:var(--accent)}
+.form-group select option{background:var(--bg3)}
+.form-group textarea{resize:vertical;min-height:80px}
+.form-full{grid-column:1/-1}
+.form-actions{display:flex;gap:10px;margin-top:8px}
+.modal-overlay{position:fixed;inset:0;z-index:5000;background:rgba(0,0,0,.75);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal{background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:28px;width:560px;max-width:90vw;max-height:82vh;overflow-y:auto;animation:mIn .25s cubic-bezier(.34,1.56,.64,1)}
+@keyframes mIn{from{transform:scale(.92);opacity:0}to{transform:scale(1);opacity:1}}
+.modal-title{font-size:17px;font-weight:700;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between}
+.modal-close{background:none;border:none;color:var(--muted);cursor:pointer;font-size:18px;padding:4px}
+.modal-close:hover{color:var(--text)}
+
+/* ── CAPACITY BARS ── */
+.cap-bar-row{margin-bottom:12px}
+.cap-bar-row .cap-labels{display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px}
+.cap-bar-track{height:6px;background:var(--bg4);border-radius:3px;overflow:hidden}
+.cap-bar-fill{height:100%;border-radius:3px;transition:width .5s}
+
+/* ── REG ITEMS ── */
+.reg-item{background:var(--bg3);border-radius:10px;padding:14px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.reg-info h4{font-size:13px;font-weight:600}
+.reg-info p{font-size:11px;color:var(--muted);margin-top:2px}
+.reg-actions{display:flex;gap:6px;flex-shrink:0}
+
+/* ── TOAST ── */
+#toast{position:fixed;bottom:22px;right:22px;z-index:9000;background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:12px 18px;font-size:13px;font-weight:500;transform:translateY(80px);opacity:0;transition:all .3s cubic-bezier(.34,1.56,.64,1);max-width:300px}
+#toast.show{transform:translateY(0);opacity:1}
+#toast.success{border-color:rgba(16,185,129,.4);color:var(--green)}
+#toast.error{border-color:rgba(239,68,68,.4);color:var(--red)}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginScreen">
+  <div class="login-wrap">
+    <div class="login-logo"><div class="dot">🚌</div>KRCE Bus Admin</div>
+    <div class="login-college">K. Ramakrishnan College of Engineering, Trichy</div>
+    <div class="login-sub">Transportation Committee &amp; Admin Portal</div>
+    <div class="field-grp"><label>Email</label>
+      <input type="email" id="loginEmail" placeholder="admin@krce.ac.in" value="admin@krce.ac.in"></div>
+    <div class="field-grp"><label>Password</label>
+      <input type="password" id="loginPw" placeholder="••••••••" value="admin@krce"></div>
+    <button class="login-btn" onclick="doLogin()">Sign In</button>
+    <div class="login-error" id="loginError"></div>
+    <div class="demo-hint">
+      <strong>Admin:</strong> admin@krce.ac.in / admin@krce<br>
+      <strong>Committee:</strong> committee@krce.ac.in / comm@krce
+    </div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <div id="topbar">
+    <div class="tb-left">
+      <div class="tb-logo"><div class="dot">🚌</div>TransitAdmin</div>
+      <div class="tb-college">K. Ramakrishnan College of Engineering</div>
+      <div class="live-pill"><span class="live-dot"></span>LIVE</div>
+    </div>
+    <div class="tb-right">
+      <div class="tb-user">Signed in as <strong id="tbName">—</strong></div>
+      <button class="tb-btn" onclick="doLogout()">Logout</button>
+    </div>
+  </div>
+
+  <div id="bodyWrap">
+    <div id="sidebar">
+      <div class="nav-section">
+        <div class="nav-section-label">Overview</div>
+        <div class="nav-item active" id="nav-dashboard" onclick="nav('dashboard')"><span class="icon">📊</span>Dashboard</div>
+        <div class="nav-item" id="nav-fleet"     onclick="nav('fleet')">    <span class="icon">🗺️</span>Live Fleet Map</div>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-label">Management</div>
+        <div class="nav-item" id="nav-buses"     onclick="nav('buses')">    <span class="icon">🚌</span>Buses &amp; Routes</div>
+        <div class="nav-item" id="nav-drivers"   onclick="nav('drivers')">  <span class="icon">👤</span>Drivers</div>
+        <div class="nav-item" id="nav-students"  onclick="nav('students')"> <span class="icon">🎓</span>Students &amp; Staff</div>
+        <div class="nav-item" id="nav-registrations" onclick="nav('registrations')"><span class="icon">📋</span>Registrations<span class="badge" id="regBadge">0</span></div>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-label">Operations</div>
+        <div class="nav-item" id="nav-attendance"  onclick="nav('attendance')"> <span class="icon">✅</span>Attendance</div>
+        <div class="nav-item" id="nav-alerts"      onclick="nav('alerts')">     <span class="icon">📢</span>Alerts</div>
+      </div>
+      <div id="sidebar-footer">
+        <div class="sidebar-stat green"><div class="s-val" id="sbLiveBuses">—</div><div class="s-lbl">Live Buses</div></div>
+        <div class="sidebar-stat amber"><div class="s-val" id="sbToday">—</div><div class="s-lbl">Boarded Today</div></div>
+      </div>
+    </div>
+
+    <div id="main">
+
+      <!-- DASHBOARD -->
+      <div class="view active" id="view-dashboard">
+        <div class="page-header">
+          <div><div class="page-title">Dashboard Overview</div><div class="page-subtitle" id="dashDate"></div></div>
+          <button class="btn btn-primary" onclick="openSendAlert()">📢 Send Alert</button>
+        </div>
+        <div class="stats-grid">
+          <div class="stat-card"><div class="s-top"><div class="s-icon" style="background:rgba(59,130,246,.15)">🚌</div><span class="s-delta" id="sdLive">—</span></div><div class="s-val" id="sdStudents">—</div><div class="s-lbl">Students &amp; Staff</div></div>
+          <div class="stat-card"><div class="s-top"><div class="s-icon" style="background:rgba(16,185,129,.15)">✅</div></div><div class="s-val" id="sdBoarded">—</div><div class="s-lbl">Boarded Today</div></div>
+          <div class="stat-card"><div class="s-top"><div class="s-icon" style="background:rgba(245,158,11,.15)">👤</div></div><div class="s-val" id="sdDrivers">—</div><div class="s-lbl">Registered Drivers</div></div>
+          <div class="stat-card"><div class="s-top"><div class="s-icon" style="background:rgba(239,68,68,.15)">📋</div><span class="s-delta" style="background:rgba(245,158,11,.1);color:var(--amber)" id="sdPendingTxt">pending</span></div><div class="s-val" id="sdPending">—</div><div class="s-lbl">Pending Registrations</div></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+          <div class="card">
+            <div class="card-header"><div class="card-title">Bus Capacity Utilisation</div></div>
+            <div class="card-body" id="busCapacity"></div>
+          </div>
+          <div class="card">
+            <div class="card-header"><div class="card-title">Active Alerts</div>
+              <button class="btn btn-outline btn-sm" onclick="nav('alerts')">View All</button></div>
+            <div class="card-body" id="dashAlerts"></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Today's Boarding Log</div>
+            <button class="btn btn-outline btn-sm" onclick="nav('attendance')">View All</button></div>
+          <div style="overflow:auto">
+            <table><thead><tr><th>Student</th><th>College ID</th><th>Bus</th><th>Stop</th><th>Time</th><th>Type</th></tr></thead>
+            <tbody id="recentAttendance"></tbody></table>
+          </div>
+        </div>
+      </div>
+
+      <!-- FLEET MAP -->
+      <div class="view" id="view-fleet" style="padding:0;position:relative">
+        <div id="fleetMap"></div>
+        <div class="map-overlay top-left">
+          <div class="overlay-title">🚌 Active Fleet (<span id="activeBusCount">0</span>)</div>
+          <div id="busList"></div>
+        </div>
+        <div class="map-overlay top-right">
+          <div class="overlay-title">📊 Live Stats</div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div style="display:flex;justify-content:space-between;font-size:13px"><span style="color:var(--muted)">Total On-Board</span><span style="font-family:'JetBrains Mono';font-weight:600" id="mapTotal">—</span></div>
+            <div style="display:flex;justify-content:space-between;font-size:13px"><span style="color:var(--muted)">Moving</span><span style="font-family:'JetBrains Mono';font-weight:600;color:var(--green)" id="mapMoving">—</span></div>
+            <div style="display:flex;justify-content:space-between;font-size:13px"><span style="color:var(--muted)">Idle / Offline</span><span style="font-family:'JetBrains Mono';font-weight:600;color:var(--amber)" id="mapIdle">—</span></div>
+            <div style="font-size:10px;color:var(--muted);margin-top:4px;font-family:'JetBrains Mono'" id="mapUpdateTs">—</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- BUSES -->
+      <div class="view" id="view-buses">
+        <div class="page-header">
+          <div><div class="page-title">Buses &amp; Routes</div><div class="page-subtitle">Manage fleet, routes and stops</div></div>
+          <button class="btn btn-primary" onclick="openAddBus()">+ Add Bus</button>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Fleet Overview</div>
+            <div class="search-bar" style="margin:0;width:240px"><input type="text" placeholder="Search buses..." id="busSearch" oninput="filterBuses()"></div>
+          </div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Bus No.</th><th>Route</th><th>Driver</th><th>Capacity</th><th>Boarded Today</th><th>GPS Status</th><th>Actions</th></tr></thead>
+            <tbody id="busTable"></tbody>
+          </table></div>
+        </div>
+      </div>
+
+      <!-- DRIVERS -->
+      <div class="view" id="view-drivers">
+        <div class="page-header">
+          <div><div class="page-title">Drivers</div><div class="page-subtitle">Driver assignments and online status</div></div>
+        </div>
+        <div class="card"><div class="table-wrap"><table>
+          <thead><tr><th>Name</th><th>Phone</th><th>Licence</th><th>Bus</th><th>Route</th><th>Status</th></tr></thead>
+          <tbody id="driverTable"></tbody>
+        </table></div></div>
+      </div>
+
+      <!-- STUDENTS -->
+      <div class="view" id="view-students">
+        <div class="page-header">
+          <div><div class="page-title">Students &amp; Staff</div><div class="page-subtitle">All registered users</div></div>
+          <button class="btn btn-outline" onclick="exportStudentsCSV()">⬇ Export CSV</button>
+        </div>
+        <div class="filter-row">
+          <select id="stuRoleFilter" onchange="loadStudents()"><option value="">All Roles</option><option value="student">Students</option><option value="staff">Staff</option></select>
+          <input type="text" id="stuSearch" placeholder="Search name / ID..." oninput="loadStudents()" style="padding:7px 12px;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-family:'Space Grotesk';font-size:12px;outline:none;width:220px">
+        </div>
+        <div class="card"><div class="table-wrap"><table>
+          <thead><tr><th>Name</th><th>College ID</th><th>Role</th><th>Bus</th><th>RFID</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="studentTable"></tbody>
+        </table></div></div>
+      </div>
+
+      <!-- REGISTRATIONS -->
+      <div class="view" id="view-registrations">
+        <div class="page-header">
+          <div><div class="page-title">Registrations</div><div class="page-subtitle">Approve or reject bus registration requests</div></div>
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:16px">
+          <button class="btn btn-outline btn-sm" onclick="loadRegs('pending')"   id="regTab-pending">Pending</button>
+          <button class="btn btn-outline btn-sm" onclick="loadRegs('approved')"  id="regTab-approved">Approved</button>
+          <button class="btn btn-outline btn-sm" onclick="loadRegs('rejected')"  id="regTab-rejected">Rejected</button>
+        </div>
+        <div id="regList"></div>
+      </div>
+
+      <!-- ATTENDANCE -->
+      <div class="view" id="view-attendance">
+        <div class="page-header">
+          <div><div class="page-title">Attendance Records</div><div class="page-subtitle">RFID boarding &amp; exit history</div></div>
+          <button class="btn btn-outline" onclick="exportAtt()">⬇ Export CSV</button>
+        </div>
+        <div class="filter-row">
+          <input type="date" id="attDate" style="padding:7px 11px;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-family:'Space Grotesk';font-size:12px;outline:none">
+          <select id="attBus" style="padding:7px 11px;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-family:'Space Grotesk';font-size:12px;outline:none"><option value="">All Buses</option></select>
+          <button class="btn btn-primary btn-sm" onclick="loadAttendance()">Filter</button>
+        </div>
+        <div class="card"><div class="table-wrap"><table>
+          <thead><tr><th>Student</th><th>College ID</th><th>Bus</th><th>Route</th><th>Stop</th><th>Tap</th><th>Time</th></tr></thead>
+          <tbody id="attTable"></tbody>
+        </table></div></div>
+      </div>
+
+      <!-- ALERTS -->
+      <div class="view" id="view-alerts">
+        <div class="page-header">
+          <div><div class="page-title">Alerts &amp; Announcements</div><div class="page-subtitle">Send targeted messages to students and drivers</div></div>
+          <button class="btn btn-primary" onclick="openSendAlert()">📢 Send Alert</button>
+        </div>
+        <div id="alertsList"></div>
+      </div>
+
+    </div><!-- /main -->
+  </div><!-- /bodyWrap -->
+</div><!-- /app -->
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal">
+  <div class="modal" id="modalContent"></div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// ── State ──────────────────────────────────────────────────────────
+let token = '', user = {};
+let fleetMap = null, busMarkers = {}, mapInit = false;
+let allBuses = [], allDrivers = [];
+let currentRegStatus = 'pending', editBusId = null;
+
+// ── API helpers ────────────────────────────────────────────────────
+const h = () => ({ Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' });
+const GET  = url      => fetch(url, { headers: h() }).then(r => r.json());
+const POST = (url, b) => fetch(url, { method:'POST',  headers: h(), body: JSON.stringify(b) }).then(r => r.json());
+const PUT  = (url, b) => fetch(url, { method:'PUT',   headers: h(), body: JSON.stringify(b) }).then(r => r.json());
+const DEL  = url      => fetch(url, { method:'DELETE',headers: h() }).then(r => r.json());
+
+// ── Auth ───────────────────────────────────────────────────────────
+async function doLogin() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const pw    = document.getElementById('loginPw').value;
+  const err   = document.getElementById('loginError');
+  err.style.display = 'none';
+  try {
+    const d = await fetch('/api/auth/login', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ email, password: pw })
+    }).then(r => r.json());
+    if (d.detail) { err.textContent = d.detail; err.style.display = 'block'; return; }
+    if (!['admin','committee'].includes(d.role)) {
+      err.textContent = 'Access denied — admin or committee role required.';
+      err.style.display = 'block'; return;
+    }
+    token = d.token; user = d;
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('tbName').textContent = d.name;
+    document.getElementById('app').classList.add('visible');
+    initApp();
+  } catch(e) { err.textContent = 'Server unreachable.'; err.style.display = 'block'; }
+}
+
+function doLogout() {
+  token = ''; user = {};
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('app').classList.remove('visible');
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && document.getElementById('loginScreen').style.display !== 'none') doLogin();
+});
+
+// ── Init ───────────────────────────────────────────────────────────
+function initApp() {
+  document.getElementById('dashDate').textContent =
+    new Date().toLocaleDateString('en-IN', {weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  document.getElementById('attDate').value = new Date().toISOString().slice(0,10);
+  loadStats();
+  loadDashboard();
+  populateBusFilter();
+  setInterval(() => {
+    loadStats();
+    if (mapInit) updateFleetMap();
+    if (document.getElementById('view-dashboard').classList.contains('active')) loadDashboard();
+  }, 5000);
+}
+
+// ── Navigation ─────────────────────────────────────────────────────
+function nav(page) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('view-'+page).classList.add('active');
+  document.getElementById('nav-'+page)?.classList.add('active');
+  if (page === 'fleet')         { initFleetMap(); setTimeout(() => { if(fleetMap) fleetMap.invalidateSize(); updateFleetMap(); }, 120); }
+  if (page === 'buses')         loadBuses();
+  if (page === 'drivers')       loadDrivers();
+  if (page === 'students')      loadStudents();
+  if (page === 'registrations') loadRegs('pending');
+  if (page === 'attendance')    loadAttendance();
+  if (page === 'alerts')        loadAlerts();
+}
+
+// ── Stats ──────────────────────────────────────────────────────────
+async function loadStats() {
+  const d = await GET('/api/admin/stats');
+  const s = (id, v) => { const el = document.getElementById(id); if(el) el.textContent = v; };
+  s('sdStudents', d.total_students);
+  s('sdBoarded',  d.boarded_today);
+  s('sdDrivers',  d.total_drivers);
+  s('sdPending',  d.pending_regs);
+  s('sdLive',     d.live_buses + ' live');
+  s('sbLiveBuses',d.live_buses);
+  s('sbToday',    d.boarded_today);
+  const rb = document.getElementById('regBadge');
+  if (rb) rb.textContent = d.pending_regs;
+}
+
+// ── Dashboard ──────────────────────────────────────────────────────
+async function loadDashboard() {
+  allBuses = await GET('/api/admin/buses');
+  renderCapBars();
+  renderDashAlerts();
+  renderRecentAtt();
+}
+
+function renderCapBars() {
+  const el = document.getElementById('busCapacity');
+  if (!el) return;
+  el.innerHTML = allBuses.slice(0, 5).map(b => {
+    const live = b.live;
+    const pax  = live ? live.passengers : b.boarded_today;
+    const pct  = Math.round(Math.min(100, pax / b.capacity * 100));
+    const col  = pct > 85 ? 'var(--red)' : pct > 60 ? 'var(--amber)' : 'var(--green)';
+    return `<div class="cap-bar-row">
+      <div class="cap-labels"><span>${b.number}</span><span style="color:var(--muted)">${pax}/${b.capacity}</span></div>
+      <div class="cap-bar-track"><div class="cap-bar-fill" style="width:${pct}%;background:${col}"></div></div>
+    </div>`;
+  }).join('');
+}
+
+async function renderDashAlerts() {
+  const el = document.getElementById('dashAlerts');
+  if (!el) return;
+  const alerts = await GET('/api/admin/alerts');
+  const active = alerts.filter(a => !a.is_resolved).slice(0, 4);
+  el.innerHTML = active.length === 0
+    ? '<div style="font-size:12px;color:var(--muted);text-align:center;padding:14px">No active alerts</div>'
+    : active.map(a => `
+      <div style="padding:10px;background:var(--bg3);border-radius:8px;margin-bottom:8px;border-left:3px solid ${a.alert_type==='emergency'?'var(--red)':a.alert_type==='delay'?'var(--amber)':'var(--accent)'}">
+        <div style="font-size:12px;font-weight:600">${a.title}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:3px">${a.sent_at?.slice(0,16)} · ${a.target_role}</div>
+      </div>`).join('');
+}
+
+async function renderRecentAtt() {
+  const el = document.getElementById('recentAttendance');
+  if (!el) return;
+  const today = new Date().toISOString().slice(0,10);
+  const rows = await GET('/api/admin/attendance?date_filter='+today);
+  el.innerHTML = rows.slice(0, 8).map(r => `
+    <tr>
+      <td>${r.student_name}</td>
+      <td style="font-family:'JetBrains Mono';font-size:11px">${r.college_id||'—'}</td>
+      <td>${r.bus_number}</td>
+      <td style="color:var(--muted);font-size:12px">${r.stop_name||'—'}</td>
+      <td style="font-family:'JetBrains Mono';font-size:11px">${r.tap_time?.slice(11,16)||'—'}</td>
+      <td><span class="badge ${r.tap_type==='boarded'?'badge-green':'badge-blue'}">${r.tap_type}</span></td>
+    </tr>`).join('');
+}
+
+// ── Fleet Map ──────────────────────────────────────────────────────
+function initFleetMap() {
+  if (mapInit) return;
+  fleetMap = L.map('fleetMap', { zoomControl: true }).setView([10.9601, 78.8078], 13);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+    { attribution:'© OSM © CARTO', maxZoom:19 }).addTo(fleetMap);
+  // College marker
+  L.marker([10.9601, 78.8078], {
+    icon: L.divIcon({ html:'<div style="background:#3B82F6;width:12px;height:12px;border-radius:50%;border:2px solid white"></div>', iconSize:[12,12], iconAnchor:[6,6], className:'' })
+  }).addTo(fleetMap).bindPopup('<b>KRCE Campus</b>');
+  mapInit = true;
+}
+
+function busIcon(status) {
+  const c = status==='moving'?'#10B981':status==='idle'?'#F59E0B':'#EF4444';
+  return L.divIcon({
+    html: `<div style="background:${c};width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 2px 8px rgba(0,0,0,.5);border:2px solid rgba(255,255,255,.3)">🚌</div>`,
+    iconSize:[30,30], iconAnchor:[15,15], className:''
+  });
+}
+
+async function updateFleetMap() {
+  if (!fleetMap) return;
+  const buses = await GET('/api/admin/buses');
+  allBuses = buses;
+  let total=0, moving=0, idle=0;
+  const seen = new Set();
+  let listHtml = '';
+
+  buses.forEach(b => {
+    seen.add(b.id);
+    const live = b.live;
+    const lat  = live ? live.lat  : 10.9601 + (Math.random()-.5)*.03;
+    const lon  = live ? live.lon  : 78.8078 + (Math.random()-.5)*.03;
+    const st   = live ? live.status : 'offline';
+    const pax  = live ? live.passengers : b.boarded_today;
+    const spd  = live ? Math.round(live.speed||0) : 0;
+    if (st === 'moving') moving++;
+    else idle++;
+    total += pax;
+
+    if (busMarkers[b.id]) {
+      busMarkers[b.id].setLatLng([lat, lon]);
+      busMarkers[b.id].setIcon(busIcon(st));
+    } else {
+      busMarkers[b.id] = L.marker([lat, lon], {icon: busIcon(st)})
+        .addTo(fleetMap)
+        .bindPopup(`<div style="font-family:'Space Grotesk';min-width:180px"><b>${b.number}</b> — ${b.route_name}<br>Driver: ${b.driver_name||'—'}<br>Boarded: ${pax}/${b.capacity}<br>Speed: ${spd} km/h<br><b>${st.toUpperCase()}</b></div>`);
+    }
+    listHtml += `<div class="bus-item" onclick="focusBus('${b.id}',${lat},${lon})">
+      <div class="bus-icon ${st}">🚌</div>
+      <div class="bus-meta"><div class="bus-name">${b.number}</div>
+        <div class="bus-detail">${pax}/${b.capacity} · ${spd>0?spd+'km/h':'idle'}</div></div>
+      <div class="speed-pill">${st}</div>
+    </div>`;
+  });
+
+  Object.keys(busMarkers).forEach(id => { if(!seen.has(id)){fleetMap.removeLayer(busMarkers[id]);delete busMarkers[id];} });
+  document.getElementById('busList').innerHTML = listHtml;
+  document.getElementById('activeBusCount').textContent = buses.length;
+  document.getElementById('mapTotal').textContent  = total;
+  document.getElementById('mapMoving').textContent = moving;
+  document.getElementById('mapIdle').textContent   = idle;
+  document.getElementById('mapUpdateTs').textContent = 'Updated: '+new Date().toLocaleTimeString();
+}
+
+function focusBus(id, lat, lon) {
+  fleetMap.flyTo([lat,lon], 16);
+  busMarkers[id]?.openPopup();
+}
+
+// ── Buses table ────────────────────────────────────────────────────
+let filteredBuses = [];
+async function loadBuses() {
+  allBuses = await GET('/api/admin/buses');
+  filteredBuses = [...allBuses];
+  renderBusTable();
+}
+
+function renderBusTable() {
+  document.getElementById('busTable').innerHTML = filteredBuses.map(b => {
+    const st = b.live?.status || 'offline';
+    return `<tr>
+      <td><strong>${b.number}</strong></td>
+      <td style="font-size:12px">${b.route_name}</td>
+      <td>${b.driver_name || '<span style="color:var(--muted)">Unassigned</span>'}</td>
+      <td style="font-family:'JetBrains Mono'">${b.capacity}</td>
+      <td>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span style="font-family:'JetBrains Mono';font-weight:600">${b.boarded_today}</span>
+          <div style="flex:1;max-width:60px;height:4px;background:var(--bg4);border-radius:2px;overflow:hidden">
+            <div style="height:100%;width:${Math.round(b.boarded_today/b.capacity*100)}%;background:var(--accent);border-radius:2px"></div>
+          </div>
+        </div>
+      </td>
+      <td><span class="badge ${st==='moving'?'badge-green':st==='idle'?'badge-amber':'badge-gray'}">${st}</span></td>
+      <td>
+        <button class="btn btn-outline btn-sm" onclick="viewBusOnMap('${b.id}')">📍</button>
+        <button class="btn btn-outline btn-sm" style="margin-left:4px" onclick='openEditBus(${JSON.stringify(b)})'>✏️</button>
+        <button class="btn btn-outline btn-sm" style="margin-left:4px;border-color:rgba(239,68,68,.3);color:var(--red)" onclick="deleteBus('${b.id}')">🗑</button>
+      </td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:20px">No buses found</td></tr>';
+}
+
+function filterBuses() {
+  const q = document.getElementById('busSearch').value.toLowerCase();
+  filteredBuses = allBuses.filter(b =>
+    b.number.toLowerCase().includes(q) || b.route_name.toLowerCase().includes(q) || (b.driver_name||'').toLowerCase().includes(q)
+  );
+  renderBusTable();
+}
+
+function viewBusOnMap(id) {
+  nav('fleet');
+  const b = allBuses.find(x => x.id===id);
+  if (b && fleetMap && busMarkers[b.id]) {
+    const ll = busMarkers[b.id].getLatLng();
+    fleetMap.flyTo(ll, 16);
+    busMarkers[b.id].openPopup();
+  }
+}
+
+async function deleteBus(id) {
+  if (!confirm('Remove this bus from the fleet?')) return;
+  await DEL('/api/admin/buses/'+id);
+  loadBuses(); showToast('Bus removed','success');
+}
+
+// ── Drivers table ──────────────────────────────────────────────────
+async function loadDrivers() {
+  const drivers = await GET('/api/admin/drivers');
+  allDrivers = drivers;
+  document.getElementById('driverTable').innerHTML = drivers.map(d => `<tr>
+    <td><div style="display:flex;align-items:center;gap:8px">
+      <div style="width:32px;height:32px;border-radius:50%;background:rgba(245,158,11,.15);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0">${d.name[0]}</div>
+      ${d.name}</div></td>
+    <td style="font-family:'JetBrains Mono';font-size:12px">${d.phone||'—'}</td>
+    <td style="font-family:'JetBrains Mono';font-size:12px">${d.licence_no||'—'}</td>
+    <td>${d.bus_number?`<span class="badge badge-amber">${d.bus_number}</span>`:'<span style="color:var(--muted);font-size:12px">Unassigned</span>'}</td>
+    <td style="font-size:12px;color:var(--muted)">${d.route_name||'—'}</td>
+    <td><span class="badge ${d.is_online?'badge-green':'badge-gray'}">${d.is_online?'Online':'Offline'}</span></td>
+  </tr>`).join('');
+}
+
+// ── Students table ─────────────────────────────────────────────────
+async function loadStudents() {
+  const role  = document.getElementById('stuRoleFilter').value;
+  const q     = (document.getElementById('stuSearch').value||'').toLowerCase();
+  const url   = '/api/admin/users' + (role ? '?role='+role : '');
+  let users   = await GET(url);
+  if (q) users = users.filter(u => u.name.toLowerCase().includes(q) || (u.college_id||'').toLowerCase().includes(q));
+  const buMap = Object.fromEntries(allBuses.map(b=>[b.id,b.number]));
+  document.getElementById('studentTable').innerHTML = users.map(u => `<tr>
+    <td><div style="display:flex;align-items:center;gap:8px">
+      <div style="width:30px;height:30px;border-radius:50%;background:rgba(59,130,246,.15);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;flex-shrink:0">${u.name[0]}</div>
+      ${u.name}</div></td>
+    <td style="font-family:'JetBrains Mono';font-size:12px">${u.college_id||'—'}</td>
+    <td><span class="badge ${u.role==='staff'?'badge-purple':'badge-blue'}">${u.role}</span></td>
+    <td>${buMap[u.bus_id]||'<span style="color:var(--muted)">—</span>'}</td>
+    <td style="font-family:'JetBrains Mono';font-size:12px">${u.rfid_card||'—'}</td>
+    <td><span class="badge ${u.is_active?'badge-green':'badge-red'}">${u.is_active?'Active':'Inactive'}</span></td>
+    <td><button class="btn btn-outline btn-sm" onclick="toggleUser('${u.id}',${u.is_active})">${u.is_active?'Deactivate':'Activate'}</button></td>
+  </tr>`).join('') || '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:20px">No users found</td></tr>';
+}
+
+async function toggleUser(id, cur) {
+  await POST('/api/admin/users/'+id+'/toggle', {});
+  loadStudents();
+  showToast('User status updated','success');
+}
+
+function exportStudentsCSV() {
+  showToast('Exporting students list…','success');
+}
+
+// ── Registrations ──────────────────────────────────────────────────
+async function loadRegs(status) {
+  currentRegStatus = status;
+  ['pending','approved','rejected'].forEach(s => {
+    const el = document.getElementById('regTab-'+s);
+    if(el) el.className = 'btn btn-outline btn-sm' + (s===status?' active-tab':'');
+  });
+  const regs = await GET('/api/admin/registrations?status='+status);
+  const el = document.getElementById('regList');
+  if (regs.length === 0) {
+    el.innerHTML = `<div style="text-align:center;padding:30px;color:var(--muted);font-size:13px">No ${status} registrations.</div>`;
+    return;
+  }
+  el.innerHTML = regs.map(r => `
+    <div class="reg-item">
+      <div class="reg-info">
+        <h4>${r.name} <span style="font-weight:400;font-size:11px;color:var(--muted)">(${r.role})</span></h4>
+        <p>${r.email||'—'} · College ID: ${r.college_id||'—'} · Requested: ${r.requested_bus||'Any'}</p>
+        <p style="margin-top:2px">Phone: ${r.phone||'—'} · Submitted: ${r.submitted_at?.slice(0,10)||'—'}</p>
+      </div>
+      ${status==='pending' ? `
+      <div class="reg-actions">
+        <button class="btn btn-success btn-sm" onclick='openRegApprove(${JSON.stringify(r)})'>Approve</button>
+        <button class="btn btn-danger btn-sm"  onclick="rejectReg('${r.id}')">Reject</button>
+      </div>` : `<span class="badge ${r.status==='approved'?'badge-green':'badge-red'}">${r.status}</span>`}
+    </div>`).join('');
+}
+
+function openRegApprove(r) {
+  const busOpts = allBuses.map(b=>`<option value="${b.id}" ${b.id===r.requested_bus?'selected':''}>${b.number} — ${b.route_name}</option>`).join('');
+  openModal(`
+    <div class="modal-title">Approve Registration <button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div style="background:var(--bg3);border-radius:8px;padding:14px;margin-bottom:16px;font-size:13px;line-height:1.8">
+      <strong>${r.name}</strong> (${r.role})<br>
+      Email: ${r.email||'—'} · College ID: ${r.college_id||'—'}
+    </div>
+    <div class="form-grid">
+      <div class="form-group form-full"><label>Assign Bus</label>
+        <select id="regBusSel">${busOpts}</select></div>
+      <div class="form-group form-full"><label>RFID Card ID</label>
+        <input type="text" id="regRfid" placeholder="RF0XX" value="${r.rfid_card||''}"></div>
+      <div class="form-group form-full"><label>Notes (optional)</label>
+        <input type="text" id="regNotes" placeholder="Any approval notes..."></div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-success" onclick="approveReg('${r.id}')">✓ Approve</button>
+    </div>`);
+}
+
+async function approveReg(regId) {
+  await POST('/api/admin/registrations/action', {
+    reg_id: regId, action: 'approved',
+    bus_id:    document.getElementById('regBusSel').value,
+    rfid_card: document.getElementById('regRfid').value,
+    notes:     document.getElementById('regNotes').value,
+  });
+  closeModal(); loadRegs('pending'); loadStats();
+  showToast('Registration approved. Account created.','success');
+}
+
+async function rejectReg(regId) {
+  if (!confirm('Reject this registration?')) return;
+  await POST('/api/admin/registrations/action', { reg_id: regId, action: 'rejected' });
+  loadRegs('pending'); loadStats();
+  showToast('Registration rejected.','error');
+}
+
+// ── Attendance ─────────────────────────────────────────────────────
+async function loadAttendance() {
+  const date  = document.getElementById('attDate').value;
+  const busId = document.getElementById('attBus').value;
+  const rows  = await GET(`/api/admin/attendance?date_filter=${date}&bus_id=${busId}`);
+  document.getElementById('attTable').innerHTML = rows.length === 0
+    ? '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--muted)">No records for this filter</td></tr>'
+    : rows.map(r => `<tr>
+        <td>${r.student_name}</td>
+        <td style="font-family:'JetBrains Mono';font-size:11px">${r.college_id||'—'}</td>
+        <td>${r.bus_number}</td>
+        <td style="font-size:12px;color:var(--muted)">${r.route_name}</td>
+        <td style="font-size:12px;color:var(--muted)">${r.stop_name||'—'}</td>
+        <td><span class="badge ${r.tap_type==='boarded'?'badge-green':'badge-blue'}">${r.tap_type}</span></td>
+        <td style="font-family:'JetBrains Mono';font-size:11px">${r.tap_time?.slice(0,16)||'—'}</td>
+      </tr>`).join('');
+}
+
+async function exportAtt() {
+  const date  = document.getElementById('attDate').value;
+  const busId = document.getElementById('attBus').value;
+  window.location.href = `/api/admin/attendance/export?date_filter=${date}&bus_id=${busId}`;
+}
+
+async function populateBusFilter() {
+  try {
+    allBuses = await GET('/api/admin/buses');
+    const sel = document.getElementById('attBus');
+    allBuses.forEach(b => {
+      const o = document.createElement('option');
+      o.value = b.id; o.textContent = b.number + ' — ' + b.route_name;
+      sel?.appendChild(o);
+    });
+  } catch(e) {}
+}
+
+// ── Alerts ─────────────────────────────────────────────────────────
+async function loadAlerts() {
+  const alerts = await GET('/api/admin/alerts');
+  document.getElementById('alertsList').innerHTML = alerts.map(a => `
+    <div class="alert-item ${a.alert_type}">
+      <div class="a-icon">${a.alert_type==='emergency'?'🚨':a.alert_type==='delay'?'⚠️':'ℹ️'}</div>
+      <div class="a-body">
+        <div class="a-title">${a.title}</div>
+        <div class="a-msg">${a.message}</div>
+        <div class="a-meta">
+          <span>${a.sent_at?.slice(0,16)||'—'}</span>
+          <span>Target: ${a.target_role}</span>
+          <span>From: ${a.sent_by||'—'}</span>
+          ${!a.is_resolved ? `<button class="resolve-btn" onclick="resolveAlert('${a.id}')">Mark Resolved</button>` : '<span style="color:var(--green)">✓ Resolved</span>'}
+        </div>
+      </div>
+    </div>`).join('') || '<div style="text-align:center;padding:30px;color:var(--muted);font-size:13px">No alerts yet.</div>';
+}
+
+async function resolveAlert(id) {
+  await POST('/api/admin/alerts/'+id+'/resolve', {});
+  loadAlerts(); showToast('Alert resolved','success');
+}
+
+function openSendAlert() {
+  const busOpts = allBuses.map(b=>`<option value="${b.id}">${b.number} — ${b.route_name}</option>`).join('');
+  openModal(`
+    <div class="modal-title">📢 Send Alert <button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="form-grid">
+      <div class="form-group form-full"><label>Title</label><input type="text" id="alTitle" placeholder="Alert title..."></div>
+      <div class="form-group"><label>Type</label>
+        <select id="alType"><option value="info">Info</option><option value="delay">Delay</option><option value="emergency">Emergency</option></select></div>
+      <div class="form-group"><label>Target</label>
+        <select id="alTarget"><option value="all">All Users</option><option value="student">Students</option><option value="staff">Staff</option><option value="driver">Drivers</option><option value="parent">Parents</option></select></div>
+      <div class="form-group form-full"><label>Message</label><textarea id="alMsg" placeholder="Enter your message..."></textarea></div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="sendAlert()">Send Alert</button>
+    </div>`);
+}
+
+async function sendAlert() {
+  const title = document.getElementById('alTitle').value.trim();
+  const msg   = document.getElementById('alMsg').value.trim();
+  if (!title || !msg) { showToast('Fill in title and message','error'); return; }
+  await POST('/api/admin/alerts', {
+    title, message: msg,
+    alert_type:  document.getElementById('alType').value,
+    target_role: document.getElementById('alTarget').value,
+  });
+  closeModal();
+  if (document.getElementById('view-alerts').classList.contains('active')) loadAlerts();
+  renderDashAlerts();
+  showToast('Alert sent to all users', 'success');
+}
+
+// ── Bus Modal ──────────────────────────────────────────────────────
+function openAddBus() {
+  editBusId = null;
+  const drvOpts = allDrivers.map(d=>`<option value="${d.id}">${d.name} ${d.bus_number?'('+d.bus_number+')':''}</option>`).join('');
+  openModal(`
+    <div class="modal-title">Add New Bus <button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="form-grid">
+      <div class="form-group"><label>Bus Number</label><input type="text" id="bNum" placeholder="TN-06"></div>
+      <div class="form-group"><label>Capacity</label><input type="number" id="bCap" value="50"></div>
+      <div class="form-group form-full"><label>Route Name</label><input type="text" id="bRoute" placeholder="Route F — Area Name"></div>
+      <div class="form-group form-full"><label>Stops (comma separated)</label><input type="text" id="bStops" placeholder="KRCE Campus, Stop 1, Stop 2"></div>
+      <div class="form-group form-full"><label>Assign Driver</label>
+        <select id="bDriver"><option value="">— Unassigned —</option>${drvOpts}</select></div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveBus()">Add Bus</button>
+    </div>`);
+}
+
+function openEditBus(b) {
+  editBusId = b.id;
+  const drvOpts = allDrivers.map(d=>`<option value="${d.id}" ${d.id===b.driver_id?'selected':''}>${d.name}</option>`).join('');
+  openModal(`
+    <div class="modal-title">Edit Bus ${b.number} <button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="form-grid">
+      <div class="form-group"><label>Bus Number</label><input type="text" id="bNum" value="${b.number}"></div>
+      <div class="form-group"><label>Capacity</label><input type="number" id="bCap" value="${b.capacity}"></div>
+      <div class="form-group form-full"><label>Route Name</label><input type="text" id="bRoute" value="${b.route_name}"></div>
+      <div class="form-group form-full"><label>Stops (comma separated)</label><input type="text" id="bStops" value="${(b.stops||[]).join(', ')}"></div>
+      <div class="form-group form-full"><label>Assign Driver</label>
+        <select id="bDriver"><option value="">— Unassigned —</option>${drvOpts}</select></div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveBus()">Save Changes</button>
+    </div>`);
+}
+
+async function saveBus() {
+  const body = {
+    number:     document.getElementById('bNum').value.trim(),
+    route_name: document.getElementById('bRoute').value.trim(),
+    capacity:   parseInt(document.getElementById('bCap').value) || 50,
+    stops:      document.getElementById('bStops').value.split(',').map(s=>s.trim()).filter(Boolean),
+    driver_id:  document.getElementById('bDriver').value,
+  };
+  if (!body.number || !body.route_name) { showToast('Bus number and route are required','error'); return; }
+  if (editBusId) await PUT('/api/admin/buses/'+editBusId, body);
+  else await POST('/api/admin/buses', body);
+  closeModal(); loadBuses(); showToast('Bus saved','success');
+}
+
+// ── Modal helpers ──────────────────────────────────────────────────
+function openModal(html) {
+  document.getElementById('modalContent').innerHTML = html;
+  document.getElementById('modal').classList.add('open');
+}
+function closeModal() { document.getElementById('modal').classList.remove('open'); }
+document.getElementById('modal').addEventListener('click', e => { if(e.target===document.getElementById('modal')) closeModal(); });
+
+// ── Toast ──────────────────────────────────────────────────────────
+function showToast(msg, type='') {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'show'+(type?' '+type:'');
+  clearTimeout(t._to); t._to = setTimeout(() => { t.className=''; }, 3200);
+}
+</script>
+</body>
+</html>
